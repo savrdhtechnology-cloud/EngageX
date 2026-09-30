@@ -445,6 +445,77 @@ export const LandingPage: React.FC = () => {
           </p>
         </div>
 
+
+        {/* Animated Growth Timeline + Savrdh Technology signature */}
+        <div className="aboutTimelineWrap">
+          <div className="aboutTimelineLeft">
+            <div className="timelineHeader">
+              <div className="kicker">GROWTH TIMELINE</div>
+              <h2>
+                From communication to <span>business growth.</span>
+              </h2>
+              <p>
+                EngageX is part of the wider Savrdh Technology ecosystem, connecting customer communication,
+                CRM workflows, automation, analytics, and scalable software solutions in one growth journey.
+              </p>
+            </div>
+
+            <div className="animatedTimeline">
+              <div className="timelineLine" aria-hidden="true" />
+
+              {[
+                {
+                  step: 'STEP 01',
+                  title: 'Discover Business Needs',
+                  text: 'Understand communication gaps, lead-flow challenges, customer journeys, and operational requirements.',
+                },
+                {
+                  step: 'STEP 02',
+                  title: 'Build Smart Solutions',
+                  text: 'Design CRM workflows, communication systems, web applications, and custom software around real business processes.',
+                },
+                {
+                  step: 'STEP 03',
+                  title: 'Automate Operations',
+                  text: 'Connect WhatsApp, SMS, email, and workflow automations to improve response time and reduce repetitive work.',
+                },
+                {
+                  step: 'STEP 04',
+                  title: 'Grow With Analytics',
+                  text: 'Measure engagement, optimize campaigns, and scale customer operations using actionable performance insights.',
+                },
+              ].map((item, index) => (
+                <div className="timelineItem" key={item.step} style={{ animationDelay: `${index * 0.18 + 0.1}s` }}>
+                  <div className="timelineDot" />
+                  <div className="timelineCard">
+                    <small>{item.step}</small>
+                    <h4>{item.title}</h4>
+                    <p>{item.text}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="aboutTimelineRight">
+            <div className="savrdhScriptArt">
+              <div className="scriptGlow" />
+              <div className="scriptOrbit orbitA" />
+              <div className="scriptOrbit orbitB" />
+              <div className="savrdhCursive">
+                Savrdh <span>Technology</span>
+              </div>
+              <div className="scriptUnderline" />
+              <p>SAVRDH GROUP OF COMPANIES</p>
+              <div className="scriptTags">
+                <span>BUILD</span>
+                <span>AUTOMATE</span>
+                <span>GROW</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
         <div className="valueGrid" style={{ marginBottom: '40px' }}>
           <article>
             <div className="featureIcon">
