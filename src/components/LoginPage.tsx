@@ -139,7 +139,7 @@ export const LoginPage: React.FC = () => {
             <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
               <button
                 type="button"
-                onClick={() => handleQuickLogin('savrdhtechnology@gmail.com', 'Owner')}
+                onClick={() => handleQuickLogin('admin@engagex.com', 'Owner')}
                 style={{
                   fontSize: '9px',
                   background: '#e0f7fa',
