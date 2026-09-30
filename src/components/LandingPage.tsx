@@ -16,6 +16,9 @@ import {
   ExternalLink,
   Users,
   Building2,
+  Monitor,
+  Cog,
+  Cloud,
   Phone,
   Send,
 } from 'lucide-react';
@@ -27,18 +30,28 @@ const slides = [
     title: 'Customer communication, ',
     accent: 'simplified and automated.',
     text: 'Bring WhatsApp Business, Carrier SMS, and Transactional Email together in one unified CRM workspace. Built by Savrdh Technology for modern scaling brands.',
+    visual: 'workspace',
   },
   {
     tag: 'Meta WhatsApp Cloud API',
     title: 'High-converting campaigns, ',
     accent: 'with 98% delivery rate.',
     text: 'Broadcast verified WhatsApp templates, interactive quick-replies, and rich catalogs with telecom DLT compliance and real-time read receipts.',
+    visual: 'workspace',
   },
   {
     tag: 'Visual Journey Builder',
     title: 'Automated workflows that ',
     accent: 'turn leads into buyers.',
     text: 'Design trigger-based drip sequences, abandoned cart recovery, and customer review requests with multi-channel fallback and zero coding required.',
+    visual: 'workspace',
+  },
+  {
+    tag: 'Savrdh Technology · Build · Automate · Grow',
+    title: 'Let’s build better ',
+    accent: 'customer communication.',
+    text: 'EngageX combines customer messaging with the wider Savrdh Technology ecosystem — CRM solutions, automation tools, web applications, and custom software built to help businesses scale.',
+    visual: 'savrdh',
   },
 ];
 
@@ -242,11 +255,11 @@ export const LandingPage: React.FC = () => {
           <p>{s.text}</p>
 
           <div className="heroActions">
-            <button className="primaryBtn" onClick={() => handleOpenApp('dashboard')}>
-              Open CRM Workspace <ArrowRight size={18} />
+            <button className="primaryBtn" onClick={() => s.visual === 'savrdh' ? scrollTo('features') : handleOpenApp('dashboard')}>
+              {s.visual === 'savrdh' ? 'Explore Product' : 'Open CRM Workspace'} <ArrowRight size={18} />
             </button>
-            <button className="secondaryBtn" onClick={() => handleOpenApp('messages')}>
-              <Play size={17} fill="currentColor" /> Test Live Chat Simulator
+            <button className="secondaryBtn" onClick={() => s.visual === 'savrdh' ? scrollTo('contact') : handleOpenApp('messages')}>
+              {s.visual === 'savrdh' ? <><Building2 size={17} /> Contact Solutions Team</> : <><Play size={17} fill="currentColor" /> Test Live Chat Simulator</>}
             </button>
           </div>
 
@@ -275,9 +288,28 @@ export const LandingPage: React.FC = () => {
         </div>
 
         {/* Hero Visual Mockup with Floating Elements */}
-        <div className="heroVisual">
+        <div className={`heroVisual ${s.visual === 'savrdh' ? 'brandHeroVisual' : ''}`}>
           <div className="glow" />
-          <div className="dashboardCard floatingDashboard" style={{ cursor: 'pointer' }} onClick={() => handleOpenApp('dashboard')}>
+          {s.visual === 'savrdh' && (
+            <div className="savrdhBrandPanel animatedSlide">
+              <div className="brandPanelGlow" />
+              <div className="savrdhScript">Savrdh<br/><span>Technology</span></div>
+              <div className="brandUnderline" />
+              <p className="brandGroup">SAVRDH GROUP OF COMPANIES</p>
+              <div className="buildStack">
+                <span>BUILD</span>
+                <span>AUTOMATE</span>
+                <span>GROW</span>
+              </div>
+              <div className="brandServiceDock">
+                <div><Monitor size={23}/><span>Web Applications</span></div>
+                <div><Cog size={23}/><span>CRM Solutions</span></div>
+                <div><Cloud size={23}/><span>Automation Tools</span></div>
+                <div><Sparkles size={23}/><span>Custom Software</span></div>
+              </div>
+            </div>
+          )}
+          <div className="dashboardCard floatingDashboard" style={{ cursor: 'pointer', display: s.visual === 'savrdh' ? 'none' : undefined }} onClick={() => handleOpenApp('dashboard')}>
             <div className="dashTop">
               <div>
                 <span className="muted">EngageX Workspace</span>
@@ -346,7 +378,7 @@ export const LandingPage: React.FC = () => {
             </div>
           </div>
 
-          <div className="floatingCard fc1" onClick={() => handleOpenApp('messages')}>
+          <div className="floatingCard fc1" style={{ display: s.visual === 'savrdh' ? 'none' : undefined }} onClick={() => handleOpenApp('messages')}>
             <div className="floatIcon whatsapp">
               <MessageCircle size={19} />
             </div>
@@ -357,7 +389,7 @@ export const LandingPage: React.FC = () => {
             <CheckCircle2 size={17} color="#25d366" />
           </div>
 
-          <div className="floatingCard fc2" onClick={() => handleOpenApp('campaigns')}>
+          <div className="floatingCard fc2" style={{ display: s.visual === 'savrdh' ? 'none' : undefined }} onClick={() => handleOpenApp('campaigns')}>
             <div className="floatIcon email">
               <Mail size={19} />
             </div>
