@@ -29,6 +29,8 @@ import {
 export interface AppContextType {
   live?: boolean;
   workspaceSettings?: Record<string, string>;
+  activeWorkspace?: { id: string; slug: string; name: string } | null;
+  switchWorkspace?: (slug: string) => Promise<void>;
   saveWorkspaceSettings?: (settings: Record<string, string>) => Promise<void>;
   reportError?: (error: unknown) => void | Promise<void>;
   // Navigation
