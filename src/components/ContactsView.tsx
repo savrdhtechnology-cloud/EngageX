@@ -34,6 +34,8 @@ export const ContactsView: React.FC = () => {
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [notice, setNotice] = useState<string>('');
   const [error, setError] = useState<string>('');
+  const [bulkWhatsAppQueue, setBulkWhatsAppQueue] = useState<Contact[]>([]);
+  const [bulkIndex, setBulkIndex] = useState(0);
 
   const openWhatsAppInvite = (contact: Contact) => {
     const phone = normalizePhone(contact.mobile || '');
@@ -44,6 +46,31 @@ export const ContactsView: React.FC = () => {
     const message = encodeURIComponent(buildGroupInviteMessage(contact.name));
     window.open(`https://wa.me/${phone}?text=${message}`, '_blank', 'noopener,noreferrer');
     setNotice(`WhatsApp invite opened for ${contact.name}. Press Send in WhatsApp to deliver it.`);
+  };
+
+  const startBulkWhatsAppInvites = () => {
+    const selected = contacts.filter((contact) => selectedIds.includes(contact.id));
+    const eligible = selected.filter((contact) => contact.whatsapp_consent && !!normalizePhone(contact.mobile || ''));
+    const skipped = selected.length - eligible.length;
+    if (!eligible.length) {
+      setError('No selected contacts have both a valid mobile number and WhatsApp consent.');
+      return;
+    }
+    setBulkWhatsAppQueue(eligible);
+    setBulkIndex(0);
+    setNotice(`${eligible.length} WhatsApp invites prepared${skipped ? `; ${skipped} skipped due to missing consent/mobile.` : '.'}`);
+  };
+
+  const openNextBulkInvite = () => {
+    const contact = bulkWhatsAppQueue[bulkIndex];
+    if (!contact) return;
+    openWhatsAppInvite(contact);
+    setBulkIndex((i) => i + 1);
+  };
+
+  const closeBulkWhatsApp = () => {
+    setBulkWhatsAppQueue([]);
+    setBulkIndex(0);
   };
 
   const copyGroupInvite = async (contact: Contact) => {
@@ -395,6 +422,12 @@ export const ContactsView: React.FC = () => {
           <span>Email Opted-in</span>
           <button onClick={handleExportCSV}>Export Selected</button>
           <button
+            onClick={startBulkWhatsAppInvites}
+            style={{ background: '#16a34a', color: '#fff', border: 0, borderRadius: 8, padding: '7px 10px', fontWeight: 800, cursor: 'pointer' }}
+          >
+            Prepare WhatsApp Invites
+          </button>
+          <button
             className="danger"
             onClick={async () => {
               if (confirm(`Are you sure you want to delete ${selectedIds.length} contacts?`)) {
@@ -591,6 +624,45 @@ export const ContactsView: React.FC = () => {
           </div>
         )}
       </section>
+
+      {bulkWhatsAppQueue.length > 0 && (
+        <div className="modalBackdrop">
+          <div className="modalCard" style={{ maxWidth: '560px' }}>
+            <div className="modalHead">
+              <div>
+                <small>MANUAL WHATSAPP QUEUE</small>
+                <h3>Send AKBS Group Invites</h3>
+              </div>
+              <button onClick={closeBulkWhatsApp}>×</button>
+            </div>
+            <p style={{ fontSize: 12, color: '#64748b', lineHeight: 1.6 }}>
+              API is not connected, so EngageX will open one opted-in contact at a time with the group invite prefilled.
+              Press Send in WhatsApp, then return here and open the next contact.
+            </p>
+            <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 12, padding: 14, margin: '14px 0' }}>
+              <div style={{ fontSize: 11, color: '#64748b' }}>Progress</div>
+              <div style={{ fontSize: 22, fontWeight: 900, color: '#0f172a' }}>
+                {Math.min(bulkIndex, bulkWhatsAppQueue.length)} / {bulkWhatsAppQueue.length}
+              </div>
+              {bulkIndex < bulkWhatsAppQueue.length ? (
+                <div style={{ marginTop: 8, fontSize: 12 }}>
+                  Next: <b>{bulkWhatsAppQueue[bulkIndex].name}</b> · {bulkWhatsAppQueue[bulkIndex].mobile}
+                </div>
+              ) : (
+                <div style={{ marginTop: 8, fontSize: 12, color: '#15803d', fontWeight: 800 }}>Queue completed.</div>
+              )}
+            </div>
+            <div className="modalActions">
+              <button className="cbtn secondary" onClick={closeBulkWhatsApp}>Close</button>
+              {bulkIndex < bulkWhatsAppQueue.length && (
+                <button className="cbtn primary" onClick={openNextBulkInvite}>
+                  Open Next WhatsApp
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Add / Edit Contact Modal */}
       {isModalOpen && (
