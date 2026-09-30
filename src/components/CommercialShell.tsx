@@ -59,6 +59,7 @@ export const CommercialShell: React.FC<{
     markAllNotificationsRead,
     deleteNotification,
     setActiveChatContactId,
+    activeWorkspace,
   } = useApp();
 
   const [showNotifications, setShowNotifications] = useState(false);
@@ -346,6 +347,11 @@ export const CommercialShell: React.FC<{
             </div>
             <h1>{title}</h1>
             <p className="pageSub">{subtitle}</p>
+            {activeWorkspace && (
+              <div style={{ marginTop: 6, display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 10, fontWeight: 800, color: '#075985', background: '#e0f7fa', border: '1px solid #bae6fd', borderRadius: 999, padding: '4px 8px' }}>
+                <Building2 size={12} /> {activeWorkspace.name}
+              </div>
+            )}
           </div>
 
           <div className="crmHeaderActions" style={{ position: 'relative' }}>
