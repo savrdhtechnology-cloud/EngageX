@@ -35,7 +35,7 @@ export const LiveAppProvider: React.FC<{children: React.ReactNode}> = ({ childre
     }
   };
 
-  const loadWorkspace = async (session: Session | null, navigate = false) => {
+  const loadWorkspace = async (session: Session | null, navigate = false, slug = workspaceSlug) => {
     const ticket = ++generation.current;
     const nextUid = session?.user.id || null;
     if (uid.current !== nextUid) { setRecords(blank()); setWorkspace(null); setBilling(emptyBilling); setUserSession(signedOut); }
@@ -43,7 +43,7 @@ export const LiveAppProvider: React.FC<{children: React.ReactNode}> = ({ childre
     if (!session) { setLoading(false); return; }
     setLoading(true);
     try {
-      const { data: w, error: wError } = await supabase.from('engagex_workspaces').select('*').eq('slug',workspaceSlug).maybeSingle();
+      const { data: w, error: wError } = await supabase.from('engagex_workspaces').select('*').eq('slug',slug).maybeSingle();
       if (wError) throw new Error(wError.message);
       if (!w) throw new Error('This account has no EngageX workspace access. Ask the workspace owner to add you.');
       const [entries, bill] = await Promise.all([
@@ -110,7 +110,15 @@ export const LiveAppProvider: React.FC<{children: React.ReactNode}> = ({ childre
 
   const value: AppContextType = {
     live:true, currentView, setCurrentView, appTab, setAppTab, activeChatContactId, setActiveChatContactId,
-    userSession, reportError, workspaceSettings:workspace?.settings || {},
+    userSession, reportError, workspaceSettings:workspace?.settings || {}, activeWorkspace: workspace ? { id: workspace.id, slug: workspace.slug, name: workspace.name } : null,
+    switchWorkspace: async (slug: string) => {
+      const { data } = await supabase.auth.getSession();
+      if (!data.session) throw new Error('Please sign in to EngageX.');
+      await loadWorkspace(data.session, false, slug);
+      setActiveChatContactId('');
+      setAppTab('dashboard');
+      setCurrentView('app');
+    },
     saveWorkspaceSettings: settings => run(async () => {
       const {data,error}=await supabase.from('engagex_workspaces').update({name:settings.workspaceName,settings}).eq('id',requireWorkspace()).select().single();
       if(error) throw new Error(error.message); setWorkspace(data); await refresh('audit_logs');
