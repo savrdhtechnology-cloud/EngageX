@@ -21,6 +21,7 @@ import { IntegrationsView } from './components/IntegrationsView';
 import { TeamView } from './components/TeamView';
 import { BillingView } from './components/BillingView';
 import { SettingsView } from './components/SettingsView';
+import { ClientsView } from './components/ClientsView';
 
 const AppContent: React.FC = () => {
   const { currentView, appTab, userSession } = useApp();
@@ -34,6 +35,8 @@ const AppContent: React.FC = () => {
   switch (appTab) {
     case 'dashboard':
       return <DashboardView />;
+    case 'clients':
+      return <ClientsView />;
     case 'contacts':
       return <ContactsView />;
     case 'campaigns':
