@@ -66,6 +66,13 @@ export const CommercialShell: React.FC<{
   const [showNotifications, setShowNotifications] = useState(false);
   const notifRef = useRef<HTMLDivElement>(null);
 
+  // Reset viewport on module/workspace navigation so admin pages always open from the top.
+  useEffect(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+    const main = document.querySelector('.crmMain');
+    if (main instanceof HTMLElement) main.scrollTop = 0;
+  }, [appTab, activeWorkspace?.slug]);
+
   // Close notifications on outside click
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
