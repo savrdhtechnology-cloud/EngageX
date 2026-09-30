@@ -13,6 +13,7 @@ import {
   ArrowUpRight,
 } from 'lucide-react';
 import { CommercialShell } from './CommercialShell';
+import { summarize } from '../lib/metrics';
 import { useApp } from '../context/AppContext';
 
 export const AnalyticsView: React.FC = () => {
@@ -21,30 +22,7 @@ export const AnalyticsView: React.FC = () => {
   const [dateRange, setDateRange] = useState<'7d' | '14d' | '30d' | 'all'>('14d');
   const [channelFilter, setChannelFilter] = useState<'all' | 'whatsapp' | 'sms' | 'email'>('all');
 
-  const stats = useMemo(() => {
-    const totalSent = campaigns.reduce((acc, c) => acc + c.sent_count, 0) + messages.length;
-    const delivered = campaigns.reduce((acc, c) => acc + c.delivered_count, 0) + messages.filter((m) => m.status === 'delivered' || m.status === 'read').length;
-    const read = campaigns.reduce((acc, c) => acc + c.read_count, 0) + messages.filter((m) => m.status === 'read').length;
-    const replies = messages.filter((m) => m.direction === 'inbound').length + 84;
-    const clicks = Math.floor(read * 0.42);
-    const failed = campaigns.reduce((acc, c) => acc + c.failed_count, 0) + 12;
-
-    const deliveryRate = totalSent > 0 ? Math.round((delivered / totalSent) * 100) : 96.4;
-    const openRate = delivered > 0 ? Math.round((read / delivered) * 100) : 74.2;
-    const ctr = read > 0 ? Math.round((clicks / read) * 100) : 41.8;
-
-    return {
-      totalSent: totalSent || 5920,
-      delivered: delivered || 5707,
-      read: read || 4235,
-      clicks: clicks || 1778,
-      replies,
-      failed,
-      deliveryRate,
-      openRate,
-      ctr,
-    };
-  }, [campaigns, messages]);
+  const stats = useMemo(() => summarize(campaigns, messages, dateRange === 'all' ? null : parseInt(dateRange), channelFilter), [campaigns, messages, dateRange, channelFilter]);
 
   const handlePrint = () => {
     window.print();
@@ -100,7 +78,7 @@ export const AnalyticsView: React.FC = () => {
           <small>Across all campaigns & live chats</small>
         </article>
         <article>
-          <span>DELIVERED (96.4%)</span>
+          <span>DELIVERED</span>
           <strong style={{ color: '#059669' }}>{stats.delivered.toLocaleString()}</strong>
           <small>{stats.deliveryRate}% overall success rate</small>
         </article>
@@ -112,7 +90,7 @@ export const AnalyticsView: React.FC = () => {
         <article>
           <span>LINK CLICKS</span>
           <strong>{stats.clicks.toLocaleString()}</strong>
-          <small>{stats.ctr}% click-through rate</small>
+          <small>Click tracking not configured</small>
         </article>
       </div>
 
@@ -130,7 +108,7 @@ export const AnalyticsView: React.FC = () => {
         <article>
           <span>WHATSAPP MESSAGES</span>
           <strong style={{ color: '#0284c7' }}>{billing.whatsapp_usage.toLocaleString()}</strong>
-          <small>98.1% WhatsApp delivery</small>
+          <small>Workspace usage total</small>
         </article>
         <article>
           <span>SMS & EMAIL</span>
@@ -211,11 +189,11 @@ export const AnalyticsView: React.FC = () => {
                   <MessageCircle size={18} color="#15803d" />
                   <b style={{ fontSize: '12px' }}>WhatsApp Business</b>
                 </div>
-                <span style={{ fontSize: '12px', color: '#15803d', fontWeight: 800 }}>98.1% Delivered</span>
+                <span style={{ fontSize: '12px', color: '#15803d', fontWeight: 800 }}>Not measured</span>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '9px', color: '#64748b', marginTop: '6px' }}>
-                <span>Avg latency: 1.2s</span>
-                <span>Read Rate: 84.6%</span>
+                <span>Latency: not measured</span>
+                <span>Read rate: not measured</span>
               </div>
             </div>
 
@@ -225,11 +203,11 @@ export const AnalyticsView: React.FC = () => {
                   <MessageSquareText size={18} color="#0369a1" />
                   <b style={{ fontSize: '12px' }}>Carrier SMS (DLT)</b>
                 </div>
-                <span style={{ fontSize: '12px', color: '#0369a1', fontWeight: 800 }}>94.8% Delivered</span>
+                <span style={{ fontSize: '12px', color: '#0369a1', fontWeight: 800 }}>Not measured</span>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '9px', color: '#64748b', marginTop: '6px' }}>
-                <span>Avg latency: 2.8s</span>
-                <span>Throughput: 1,000/sec</span>
+                <span>Latency: not measured</span>
+                <span>Throughput: not measured</span>
               </div>
             </div>
 
@@ -239,11 +217,11 @@ export const AnalyticsView: React.FC = () => {
                   <Mail size={18} color="#b45309" />
                   <b style={{ fontSize: '12px' }}>Email (Resend)</b>
                 </div>
-                <span style={{ fontSize: '12px', color: '#b45309', fontWeight: 800 }}>96.3% Delivered</span>
+                <span style={{ fontSize: '12px', color: '#b45309', fontWeight: 800 }}>Not measured</span>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '9px', color: '#64748b', marginTop: '6px' }}>
-                <span>Bounce: 1.4%</span>
-                <span>Open Rate: 42.1%</span>
+                <span>Bounce: not measured</span>
+                <span>Open rate: not measured</span>
               </div>
             </div>
           </div>

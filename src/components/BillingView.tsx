@@ -65,12 +65,12 @@ export const BillingView: React.FC = () => {
 
   const handleTopup = () => {
     addCredits(topupAmount);
-    setNotice(`Successfully recharged ${topupAmount.toLocaleString()} message credits!`);
+    setNotice(`Demo balance increased by ${topupAmount.toLocaleString()} credits. No payment was collected.`);
     setIsTopupOpen(false);
   };
 
   const handleDownloadInvoice = (invNumber: string) => {
-    setNotice(`Invoice ${invNumber} downloaded.`);
+    setNotice(`Invoice ${invNumber} is sample data. No real invoice exists to download.`);
   };
 
   return (

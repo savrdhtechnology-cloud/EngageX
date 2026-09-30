@@ -17,6 +17,7 @@ import {
   Building,
   Check,
 } from 'lucide-react';
+import { csvCell, normalizePhone } from '../lib/metrics';
 import * as XLSX from 'xlsx';
 import { CommercialShell } from './CommercialShell';
 import { useApp } from '../context/AppContext';
@@ -59,9 +60,9 @@ export const ContactsView: React.FC = () => {
     tags: '',
     notes: '',
     status: 'active' as 'active' | 'unsubscribed' | 'bounced',
-    whatsapp_consent: true,
-    sms_consent: true,
-    email_consent: true,
+    whatsapp_consent: false,
+    sms_consent: false,
+    email_consent: false,
   });
 
   // Unique tags across all contacts
@@ -106,9 +107,9 @@ export const ContactsView: React.FC = () => {
       tags: 'hot lead',
       notes: '',
       status: 'active',
-      whatsapp_consent: true,
-      sms_consent: true,
-      email_consent: true,
+      whatsapp_consent: false,
+      sms_consent: false,
+      email_consent: false,
     });
     setIsModalOpen(true);
   };
@@ -149,6 +150,10 @@ export const ContactsView: React.FC = () => {
       return;
     }
 
+    if (contacts.some(c => c.id !== editingContact?.id && ((form.email.trim() && c.email.trim().toLowerCase() === form.email.trim().toLowerCase()) || (normalizePhone(form.mobile) && normalizePhone(c.mobile) === normalizePhone(form.mobile))))) {
+      setError('A contact with this email or mobile number already exists.'); return;
+    }
+
     const tagList = form.tags
       .split(',')
       .map((t) => t.trim().toLowerCase())
@@ -178,19 +183,19 @@ export const ContactsView: React.FC = () => {
 
     const headers = ['Name', 'Mobile', 'Email', 'Company', 'City', 'Tags', 'WhatsApp Consent', 'SMS Consent', 'Email Consent', 'Status'];
     const rows = listToExport.map((c) => [
-      `"${c.name}"`,
-      `"${c.mobile}"`,
-      `"${c.email}"`,
-      `"${c.company}"`,
-      `"${c.city}"`,
-      `"${c.tags.join(';')}"`,
+      c.name,
+      c.mobile,
+      c.email,
+      c.company,
+      c.city,
+      c.tags.join(';'),
       c.whatsapp_consent ? 'YES' : 'NO',
       c.sms_consent ? 'YES' : 'NO',
       c.email_consent ? 'YES' : 'NO',
       c.status,
     ]);
 
-    const csvContent = [headers.join(','), ...rows.map((r) => r.join(','))].join('\n');
+    const csvContent = [headers.join(','), ...rows.map((r) => r.map(csvCell).join(','))].join('\n');
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
@@ -199,6 +204,7 @@ export const ContactsView: React.FC = () => {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+    URL.revokeObjectURL(url);
     setNotice(`Exported ${listToExport.length} contacts to CSV`);
   };
 
@@ -223,7 +229,7 @@ export const ContactsView: React.FC = () => {
 
         // Map column variations intelligently
         const parsed = rawJson.map((row: any) => {
-          const name = row.Name || row.name || row['Full Name'] || row.Customer || `${row['First Name'] || ''} ${row['Last Name'] || ''}`.trim() || 'Customer';
+          const name = String(row.Name || row.name || row['Full Name'] || row.Customer || `${row['First Name'] || ''} ${row['Last Name'] || ''}`.trim() || 'Customer');
           const mobile = String(row.Mobile || row.mobile || row.Phone || row.phone || row['Phone Number'] || row.Whatsapp || '').trim();
           const email = String(row.Email || row.email || row['Email Address'] || '').trim();
           const company = String(row.Company || row.company || row.Organization || 'Enterprise').trim();
@@ -234,15 +240,15 @@ export const ContactsView: React.FC = () => {
             name,
             first_name: name.split(' ')[0],
             last_name: name.split(' ').slice(1).join(' '),
-            mobile: mobile.startsWith('+') ? mobile : mobile ? `+91${mobile}` : '',
+            mobile: mobile ? '+' + normalizePhone(mobile) : '',
             email,
             company,
             city,
             tags: tagsStr.split(/[,;]/).map((t: string) => t.trim().toLowerCase()).filter(Boolean),
             status: 'active' as const,
-            whatsapp_consent: true,
-            sms_consent: true,
-            email_consent: true,
+            whatsapp_consent: /^(yes|true|1)$/i.test(String(row['WhatsApp Consent'] ?? row.whatsapp_consent ?? '')),
+            sms_consent: /^(yes|true|1)$/i.test(String(row['SMS Consent'] ?? row.sms_consent ?? '')),
+            email_consent: /^(yes|true|1)$/i.test(String(row['Email Consent'] ?? row.email_consent ?? '')),
           };
         });
 

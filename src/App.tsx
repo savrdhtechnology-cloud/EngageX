@@ -22,12 +22,12 @@ import { BillingView } from './components/BillingView';
 import { SettingsView } from './components/SettingsView';
 
 const AppContent: React.FC = () => {
-  const { currentView, appTab } = useApp();
+  const { currentView, appTab, userSession } = useApp();
 
   if (currentView === 'landing') return <LandingPage />;
   if (currentView === 'about') return <AboutPage />;
   if (currentView === 'contact') return <ContactPage />;
-  if (currentView === 'login') return <LoginPage />;
+  if (currentView === 'login' || !userSession.isAuthenticated) return <LoginPage />;
 
   // CRM Workspace views
   switch (appTab) {

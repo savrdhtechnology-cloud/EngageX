@@ -17,19 +17,15 @@ import { useApp } from '../context/AppContext';
 export const LoginPage: React.FC = () => {
   const { login, setCurrentView } = useApp();
 
-  const [email, setEmail] = useState('savrdhtechnology@gmail.com');
-  const [password, setPassword] = useState('SavrdhEngageX2026!');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [notice, setNotice] = useState('');
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
-    setTimeout(() => {
-      login(email, email.includes('admin') || email.includes('savrdh') ? 'Owner' : 'Manager');
-      setLoading(false);
-    }, 400);
+    setNotice('Live sign-in is not configured yet. The evaluation buttons open a local demo only.');
   };
 
   const handleQuickLogin = (demoEmail: string, role: string) => {
@@ -54,7 +50,7 @@ export const LoginPage: React.FC = () => {
 
         <div className="loginPitch">
           <div className="loginPill">
-            <ShieldCheck size={15} /> Secure Enterprise CRM Workspace
+            <ShieldCheck size={15} /> EngageX Evaluation Workspace
           </div>
           <h1>
             Connect. Engage.
@@ -208,7 +204,7 @@ export const LoginPage: React.FC = () => {
               <label>Password</label>
               <button
                 type="button"
-                onClick={() => setNotice('Password reset instruction dispatched to ' + email)}
+                onClick={() => setNotice('Password reset requires the live authentication service. No email has been sent.')}
               >
                 Forgot password?
               </button>
@@ -240,7 +236,7 @@ export const LoginPage: React.FC = () => {
             {notice && <div className="loginNotice">{notice}</div>}
           </form>
 
-          <p className="loginTerms">Secured by Savrdh Technology Enterprise Multi-Tenant Architecture.</p>
+          <p className="loginTerms">Evaluation data is stored on this device. Live authentication is pending setup.</p>
 
           <button
             onClick={() => setCurrentView('landing')}

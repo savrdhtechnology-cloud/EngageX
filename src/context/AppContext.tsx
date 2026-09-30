@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
 import {
   Contact,
   Campaign,
@@ -105,6 +105,8 @@ interface AppContextType {
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
+import { campaignAudience, normalizePhone } from '../lib/metrics';
+
 const STORAGE_KEY = 'engagex_savrdh_state_v1';
 
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -113,11 +115,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [appTab, setAppTab] = useState<string>('dashboard');
   const [activeChatContactId, setActiveChatContactId] = useState<string>('cnt-1');
 
+  const campaignTimers = useRef(new Map<string, ReturnType<typeof setInterval>>());
+  useEffect(() => () => { campaignTimers.current.forEach(clearInterval); }, []);
+
   // Notifications state
   const [notifications, setNotifications] = useState<AppNotification[]>(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEY + '_notifications');
-      return saved ? JSON.parse(saved) : initialNotifications;
+      const parsed = saved ? JSON.parse(saved) : null;
+      return Array.isArray(parsed) ? parsed : initialNotifications;
     } catch {
       return initialNotifications;
     }
@@ -130,7 +136,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       name: 'Administrator',
       role: 'Owner',
       avatar: 'A',
-      isAuthenticated: true,
+      isAuthenticated: false,
     };
   });
 
@@ -138,7 +144,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [contacts, setContacts] = useState<Contact[]>(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEY + '_contacts');
-      return saved ? JSON.parse(saved) : initialContacts;
+      const parsed = saved ? JSON.parse(saved) : null;
+      return Array.isArray(parsed) ? parsed : initialContacts;
     } catch {
       return initialContacts;
     }
@@ -147,7 +154,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [campaigns, setCampaigns] = useState<Campaign[]>(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEY + '_campaigns');
-      return saved ? JSON.parse(saved) : initialCampaigns;
+      const parsed = saved ? JSON.parse(saved) : null;
+      return Array.isArray(parsed) ? parsed : initialCampaigns;
     } catch {
       return initialCampaigns;
     }
@@ -156,7 +164,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [messages, setMessages] = useState<Message[]>(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEY + '_messages');
-      return saved ? JSON.parse(saved) : initialMessages;
+      const parsed = saved ? JSON.parse(saved) : null;
+      return Array.isArray(parsed) ? parsed : initialMessages;
     } catch {
       return initialMessages;
     }
@@ -165,7 +174,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [templates, setTemplates] = useState<Template[]>(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEY + '_templates');
-      return saved ? JSON.parse(saved) : initialTemplates;
+      const parsed = saved ? JSON.parse(saved) : null;
+      return Array.isArray(parsed) ? parsed : initialTemplates;
     } catch {
       return initialTemplates;
     }
@@ -174,7 +184,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [automations, setAutomations] = useState<Automation[]>(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEY + '_automations');
-      return saved ? JSON.parse(saved) : initialAutomations;
+      const parsed = saved ? JSON.parse(saved) : null;
+      return Array.isArray(parsed) ? parsed : initialAutomations;
     } catch {
       return initialAutomations;
     }
@@ -183,7 +194,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [integrations, setIntegrations] = useState<Integration[]>(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEY + '_integrations');
-      return saved ? JSON.parse(saved) : initialIntegrations;
+      const parsed = saved ? JSON.parse(saved) : null;
+      return Array.isArray(parsed) ? parsed : initialIntegrations;
     } catch {
       return initialIntegrations;
     }
@@ -192,7 +204,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [team, setTeam] = useState<TeamMember[]>(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEY + '_team');
-      return saved ? JSON.parse(saved) : initialTeam;
+      const parsed = saved ? JSON.parse(saved) : null;
+      return Array.isArray(parsed) ? parsed : initialTeam;
     } catch {
       return initialTeam;
     }
@@ -210,7 +223,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [auditLogs, setAuditLogs] = useState<AuditItem[]>(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEY + '_audit');
-      return saved ? JSON.parse(saved) : initialAuditLogs;
+      const parsed = saved ? JSON.parse(saved) : null;
+      return Array.isArray(parsed) ? parsed : initialAuditLogs;
     } catch {
       return initialAuditLogs;
     }
@@ -296,7 +310,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const addContact = (data: Omit<Contact, 'id' | 'created_at'>): Contact => {
     const newContact: Contact = {
       ...data,
-      id: 'cnt-' + Date.now(),
+      id: 'cnt-' + crypto.randomUUID(),
       created_at: new Date().toISOString(),
     };
     setContacts((prev) => [newContact, ...prev]);
@@ -322,14 +336,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const importContacts = (items: Omit<Contact, 'id' | 'created_at'>[]) => {
     const existingEmails = new Set(contacts.map((c) => c.email.toLowerCase().trim()).filter(Boolean));
-    const existingPhones = new Set(contacts.map((c) => c.mobile.replace(/[^+\d]/g, '')).filter(Boolean));
+    const existingPhones = new Set(contacts.map((c) => normalizePhone(c.mobile)).filter(Boolean));
 
     let duplicates = 0;
     const toInsert: Contact[] = [];
 
     items.forEach((item) => {
       const emailClean = (item.email || '').toLowerCase().trim();
-      const phoneClean = (item.mobile || '').replace(/[^+\d]/g, '');
+      const phoneClean = normalizePhone(item.mobile || '');
 
       if ((emailClean && existingEmails.has(emailClean)) || (phoneClean && existingPhones.has(phoneClean))) {
         duplicates++;
@@ -370,52 +384,51 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     addAuditLog('CAMPAIGN_CREATED', 'Campaign', `Created campaign "${newCamp.name}" [${newCamp.channels.join(', ')}]`, newCamp.id);
 
     if (newCamp.send_mode === 'now') {
-      simulateCampaignRun(newCamp.id);
+      runCampaign(newCamp);
     }
 
     return newCamp;
   };
 
   const updateCampaign = (id: string, data: Partial<Campaign>) => {
+    if (data.status === 'paused') { clearInterval(campaignTimers.current.get(id)); campaignTimers.current.delete(id); }
     setCampaigns((prev) => prev.map((c) => (c.id === id ? { ...c, ...data } : c)));
   };
 
   const deleteCampaign = (id: string) => {
     const found = campaigns.find((c) => c.id === id);
+    clearInterval(campaignTimers.current.get(id)); campaignTimers.current.delete(id);
     setCampaigns((prev) => prev.filter((c) => c.id !== id));
     addAuditLog('CAMPAIGN_DELETED', 'Campaign', `Deleted campaign: ${found?.name || id}`, id);
   };
 
   const queueCampaign = (id: string) => {
-    updateCampaign(id, { status: 'running' });
+    if (!campaigns.some(c => c.id === id && c.status !== 'completed') || campaignTimers.current.has(id)) return;
     addAuditLog('CAMPAIGN_QUEUED', 'Campaign', `Queued campaign for dispatch`, id);
     simulateCampaignRun(id);
   };
 
   const simulateCampaignRun = (id: string) => {
+    const campaign = campaigns.find(c => c.id === id);
+    if (campaign) runCampaign(campaign);
+  };
+
+  const runCampaign = (camp: Campaign) => {
+    const id = camp.id;
+    if (campaignTimers.current.has(id) || camp.status === 'completed') return;
     updateCampaign(id, { status: 'running' });
-
-    // Deduce eligible contacts based on channel consents
-    const camp = campaigns.find((c) => c.id === id);
-    const targetChannels = camp?.channels || ['whatsapp'];
-
-    const eligible = contacts.filter((c) => {
-      return targetChannels.some((ch) => {
-        if (ch === 'whatsapp') return c.whatsapp_consent;
-        if (ch === 'sms') return c.sms_consent;
-        if (ch === 'email') return c.email_consent;
-        return false;
-      });
-    });
-
-    const totalToSend = Math.max(eligible.length * 15, 120);
+    const targetChannels = camp.channels;
+    const eligible = campaignAudience(camp, contacts);
+    const totalToSend = eligible.reduce((n, c) => n + targetChannels.filter(ch => ch === 'email' ? c.email_consent && !!c.email : ch === 'sms' ? c.sms_consent && !!normalizePhone(c.mobile) : c.whatsapp_consent && !!normalizePhone(c.mobile)).length, 0);
+    if (!totalToSend) { updateCampaign(id, { status: 'draft' }); return; }
 
     // Simulate progressive delivery ticks
     let progress = 0;
     const interval = setInterval(() => {
-      progress += Math.floor(totalToSend / 4);
+      progress += Math.max(1, Math.ceil(totalToSend / 4));
       if (progress >= totalToSend) {
         clearInterval(interval);
+        campaignTimers.current.delete(id);
         const delivered = Math.floor(totalToSend * 0.96);
         const read = Math.floor(delivered * 0.78);
         const failed = totalToSend - delivered;
@@ -440,12 +453,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         addAuditLog(
           'CAMPAIGN_COMPLETED',
           'Campaign',
-          `Campaign delivery finished. Sent: ${totalToSend}, Delivered: ${delivered} (96%), Failed: ${failed}`,
+          `Demo campaign simulation finished. Sent: ${totalToSend}, Delivered: ${delivered} (96%), Failed: ${failed}`,
           id
         );
 
         addNotification({
-          title: 'Campaign Finished',
+          title: 'Demo Campaign Finished',
           description: `"${camp?.name || 'Campaign'}" delivered to ${delivered} contacts.`,
           type: 'campaign',
           targetTab: 'campaigns',
@@ -462,11 +475,23 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         });
       }
     }, 400);
+    campaignTimers.current.set(id, interval);
   };
+
+  // Demo schedules run only while this browser workspace is open.
+  useEffect(() => {
+    const timer = setInterval(() => {
+      campaigns.filter(c => c.status === 'scheduled' && c.scheduled_at && Date.parse(c.scheduled_at) <= Date.now()).forEach(runCampaign);
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [campaigns, contacts]);
 
   // Message operations
   const sendMessage = (payload: { contact_id: string; channel: ChannelType; body: string; subject?: string }) => {
     const contact = contacts.find((c) => c.id === payload.contact_id);
+    if (!contact || contact.status !== 'active' || !payload.body.trim()) throw new Error('Select an active contact and enter a message.');
+    const consent = payload.channel === 'email' ? contact.email_consent && contact.email : payload.channel === 'sms' ? contact.sms_consent && normalizePhone(contact.mobile) : contact.whatsapp_consent && normalizePhone(contact.mobile);
+    if (!consent) throw new Error('This contact has no consent or address for the selected channel.');
     const newMsg: Message = {
       id: 'msg-' + Date.now(),
       contact_id: payload.contact_id,
@@ -501,7 +526,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       email_usage: payload.channel === 'email' ? b.email_usage + 1 : b.email_usage,
     }));
 
-    addAuditLog('MESSAGE_SENT', 'Message', `Dispatched ${payload.channel.toUpperCase()} message to ${contact?.name || 'Customer'}`);
+    addAuditLog('DEMO_MESSAGE_SENT', 'Message', `Simulated ${payload.channel.toUpperCase()} message to ${contact?.name || 'Customer'}`);
   };
 
   const simulateCustomerReply = (contact_id: string, text?: string) => {
@@ -514,6 +539,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       'Awesome offer! We are subscribing to the Pro tier today.',
     ];
     const replyText = text || replies[Math.floor(Math.random() * replies.length)];
+
+    let keywords = ['STOP', 'UNSUBSCRIBE', 'CANCEL'];
+    try { const settings = JSON.parse(localStorage.getItem(STORAGE_KEY + '_settings') || '{}'); if (settings.optOutKeyword) keywords = settings.optOutKeyword.split(',').map((k: string) => k.trim().toUpperCase()); } catch {}
+    if (keywords.includes(replyText.trim().toUpperCase())) setContacts(prev => prev.map(c => c.id === contact_id ? { ...c, status: 'unsubscribed', whatsapp_consent: false, sms_consent: false, email_consent: false } : c));
 
     const inMsg: Message = {
       id: 'msg-in-' + Date.now(),
@@ -615,11 +644,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const updateIntegration = (
     id: string,
     config: Record<string, string>,
-    status: 'connected' | 'configured' | 'disconnected' = 'connected'
+    status: 'connected' | 'configured' | 'disconnected' = 'configured'
   ) => {
+    const safeConfig = Object.fromEntries(Object.entries(config).filter(([key]) => !/secret|token|password|api.?key|auth.?key/i.test(key)));
     setIntegrations((prev) =>
       prev.map((item) =>
-        item.id === id ? { ...item, config: { ...item.config, ...config }, status, last_synced: new Date().toISOString() } : item
+        item.id === id ? { ...item, config: safeConfig, status, last_synced: new Date().toISOString() } : item
       )
     );
     addAuditLog('INTEGRATION_CONFIGURED', 'Integration', `Updated configuration for integration ID: ${id}`, id);
@@ -629,12 +659,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     provider: string,
     _config: Record<string, string>
   ): Promise<{ success: boolean; message: string; latency_ms: number }> => {
-    await new Promise((r) => setTimeout(r, 600));
-    const latency = Math.floor(Math.random() * 45) + 35;
     return {
-      success: true,
-      message: `Handshake successful with ${provider}. Real-time API response verified in ${latency}ms.`,
-      latency_ms: latency,
+      success: false,
+      message: `${provider}: live connection testing requires a server-side provider integration. No API request was sent.`,
+      latency_ms: 0,
     };
   };
 
@@ -689,6 +717,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   // Reset to initial defaults
   const resetToDefaults = () => {
+    campaignTimers.current.forEach(clearInterval); campaignTimers.current.clear();
     setContacts(initialContacts);
     setCampaigns(initialCampaigns);
     setMessages(initialMessages);
@@ -700,7 +729,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setAuditLogs(initialAuditLogs);
     setNotifications(initialNotifications);
     try {
-      localStorage.clear();
+      Object.keys(localStorage).filter(key => key.startsWith(STORAGE_KEY)).forEach(key => localStorage.removeItem(key));
     } catch {
       // ignore
     }

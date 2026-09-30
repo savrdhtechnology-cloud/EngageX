@@ -12,7 +12,7 @@ import {
 import { useApp } from '../context/AppContext';
 
 export const ContactPage: React.FC = () => {
-  const { setCurrentView, setAppTab, addAuditLog } = useApp();
+  const { setCurrentView, setAppTab, addAuditLog, importContacts } = useApp();
 
   const [name, setName] = useState('');
   const [company, setCompany] = useState('');
@@ -26,6 +26,7 @@ export const ContactPage: React.FC = () => {
     e.preventDefault();
     if (!name.trim() || !email.trim()) return;
 
+    importContacts([{ name: name.trim(), company: company.trim(), email: email.trim(), mobile: mobile.trim(), city: '', tags: ['website inquiry'], notes: `${interest}: ${message}`, status: 'active', whatsapp_consent: false, sms_consent: false, email_consent: false }]);
     addAuditLog('CONTACT_INQUIRY', 'Lead', `Received contact enquiry from ${name} (${company || 'Individual'}) - ${interest}`);
     setSubmitted(true);
   };

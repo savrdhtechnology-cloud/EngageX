@@ -29,8 +29,9 @@ export const TeamView: React.FC = () => {
       return;
     }
 
-    inviteTeamMember(email, role, name);
-    setNotice(`Invitation sent to ${email} as ${role}.`);
+    if (team.some(m => m.email.trim().toLowerCase() === email.trim().toLowerCase())) { setError('This email is already on the team.'); return; }
+    inviteTeamMember(email.trim().toLowerCase(), role, name);
+    setNotice(`Demo invitation saved for ${email} as ${role}. No email was sent.`);
     setIsInviteOpen(false);
     setEmail('');
     setName('');

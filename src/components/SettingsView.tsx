@@ -14,13 +14,15 @@ import { CommercialShell } from './CommercialShell';
 import { useApp } from '../context/AppContext';
 
 export const SettingsView: React.FC = () => {
-  const { auditLogs, resetToDefaults } = useApp();
+  const { auditLogs, resetToDefaults, addAuditLog } = useApp();
 
-  const [workspaceName, setWorkspaceName] = useState('Savrdh Technology Enterprise');
-  const [supportEmail, setSupportEmail] = useState('support@savrdh.com');
-  const [dltEntityId, setDltEntityId] = useState('110156982300001');
-  const [senderHeader, setSenderHeader] = useState('SVRDTC');
-  const [optOutKeyword, setOptOutKeyword] = useState('STOP');
+  const [saved] = useState(() => { try { return JSON.parse(localStorage.getItem('engagex_savrdh_state_v1_settings') || '{}'); } catch { return {}; } });
+  const [timezone, setTimezone] = useState(saved.timezone || 'Asia/Kolkata');
+  const [workspaceName, setWorkspaceName] = useState(saved.workspaceName || 'Savrdh Technology Enterprise');
+  const [supportEmail, setSupportEmail] = useState(saved.supportEmail || 'support@savrdh.com');
+  const [dltEntityId, setDltEntityId] = useState(saved.dltEntityId || '110156982300001');
+  const [senderHeader, setSenderHeader] = useState(saved.senderHeader || 'SVRDTC');
+  const [optOutKeyword, setOptOutKeyword] = useState(saved.optOutKeyword || 'STOP');
   const [auditSearch, setAuditSearch] = useState('');
   const [notice, setNotice] = useState('');
 
@@ -37,7 +39,11 @@ export const SettingsView: React.FC = () => {
 
   const handleSaveProfile = (e: React.FormEvent) => {
     e.preventDefault();
-    setNotice('Workspace configuration saved successfully.');
+    try {
+      localStorage.setItem('engagex_savrdh_state_v1_settings', JSON.stringify({ workspaceName, supportEmail, dltEntityId, senderHeader, optOutKeyword, timezone }));
+      addAuditLog('SETTINGS_UPDATED', 'Workspace', 'Saved workspace profile');
+      setNotice('Workspace configuration saved on this device.');
+    } catch { setNotice('Settings could not be saved. Browser storage is unavailable.'); }
   };
 
   const handleReset = () => {
@@ -83,7 +89,7 @@ export const SettingsView: React.FC = () => {
 
               <div className="field">
                 <label>Timezone</label>
-                <select defaultValue="Asia/Kolkata">
+                <select value={timezone} onChange={e => setTimezone(e.target.value)}>
                   <option value="Asia/Kolkata">Asia/Kolkata (IST - GMT+5:30)</option>
                   <option value="UTC">UTC (Universal Coordinated Time)</option>
                   <option value="America/New_York">America/New_York (EST)</option>
@@ -146,11 +152,11 @@ export const SettingsView: React.FC = () => {
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 10px', background: '#f8fafc', borderRadius: '8px' }}>
                 <span style={{ color: '#64748b' }}>Data Storage:</span>
-                <b>Encrypted Local Ledger + Active Sync</b>
+                <b>Browser Local Storage (Demo)</b>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 10px', background: '#f8fafc', borderRadius: '8px' }}>
                 <span style={{ color: '#64748b' }}>Delivery Uptime SLA:</span>
-                <b style={{ color: '#059669' }}>99.98%</b>
+                <b style={{ color: '#059669' }}>Not monitored</b>
               </div>
             </div>
           </div>

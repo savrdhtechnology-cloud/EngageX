@@ -95,7 +95,9 @@ export const CampaignsView: React.FC = () => {
   };
 
   const handleCreateCampaign = () => {
-    if (!name.trim()) return;
+    if (!name.trim() || !body.trim()) { setNotice('Campaign name and message are required.'); return; }
+    if (sendMode === 'schedule' && (!scheduledAt || Date.parse(scheduledAt) <= Date.now())) { setNotice('Choose a future scheduled date and time.'); return; }
+    if (sendMode !== 'draft' && audienceCount === 0) { setNotice('No eligible contacts match this audience and consent selection.'); return; }
 
     addCampaign({
       name,
@@ -111,7 +113,7 @@ export const CampaignsView: React.FC = () => {
 
     setNotice(
       sendMode === 'now'
-        ? `Campaign "${name}" has been launched! Real-time dispatch is running.`
+        ? `Campaign "${name}" is running as a local demo. No messages will be delivered.`
         : `Campaign "${name}" saved.`
     );
     setIsWizardOpen(false);
