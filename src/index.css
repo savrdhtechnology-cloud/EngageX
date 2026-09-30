@@ -1,0 +1,6 @@
+@import "tailwindcss";
+@import "./styles/globals.css";
+@import "./styles/animations.css";
+@import "./styles/dashboard.css";
+@import "./styles/commercial.css";
+@import "./styles/login.css";

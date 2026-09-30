@@ -1,0 +1,53 @@
+/* EngageX global motion layer */
+body{overflow-x:hidden}
+main{animation:pageEnter .65s cubic-bezier(.2,.75,.25,1) both}
+.nav{animation:navDrop .7s cubic-bezier(.2,.75,.25,1) both}
+.navLinks a{position:relative}
+.navLinks a:after{content:"";position:absolute;left:50%;right:50%;bottom:-7px;height:2px;border-radius:9px;background:linear-gradient(90deg,#075985,#06b6d4);transition:.28s ease}
+.navLinks a:hover:after{left:0;right:0}
+.innerHero{position:relative;overflow:hidden}
+.innerHero:before,.innerHero:after{content:"";position:absolute;border-radius:50%;pointer-events:none;filter:blur(2px)}
+.innerHero:before{width:320px;height:320px;right:-90px;top:-110px;background:radial-gradient(circle,rgba(6,182,212,.17),transparent 68%);animation:ambientOne 8s ease-in-out infinite}
+.innerHero:after{width:260px;height:260px;left:-100px;bottom:-120px;background:radial-gradient(circle,rgba(8,145,178,.12),transparent 70%);animation:ambientTwo 10s ease-in-out infinite}
+.pageIntro .eyebrow{animation:fadeUp .65s .08s both}
+.pageIntro h1{animation:fadeUp .75s .16s both}
+.pageIntro>p{animation:fadeUp .75s .25s both}
+.pageIntro .heroActions{animation:fadeUp .75s .34s both}
+.aboutOrb{animation:scaleIn .9s .15s both}
+.orbCore{animation:orbBreath 5s ease-in-out infinite!important}
+.orbit1{animation:orbitFloatA 4.8s ease-in-out infinite!important}.orbit2{animation:orbitFloatB 5.4s ease-in-out infinite!important}.orbit3{animation:orbitFloatC 5.1s ease-in-out infinite!important}
+.sectionHead .kicker,.sectionHead h2,.sectionHead p{animation:fadeUp .7s both}.sectionHead h2{animation-delay:.08s}.sectionHead p{animation-delay:.15s}
+.aboutStatement>div{animation:fadeRight .8s both}.aboutStatement>p{animation:fadeLeft .8s .12s both}
+.valueGrid article{animation:fadeUp .75s both;transition:transform .3s ease,box-shadow .3s ease,border-color .3s ease}.valueGrid article:nth-child(2){animation-delay:.12s}.valueGrid article:nth-child(3){animation-delay:.24s}.valueGrid article:hover{transform:translateY(-9px);box-shadow:0 22px 50px rgba(8,47,73,.11);border-color:#9cdeea}.valueGrid article:hover .featureIcon{animation:iconBounce .55s ease}
+.aboutDark>div:first-child{animation:fadeRight .85s both}.aboutChecks{animation:fadeLeft .85s .12s both}.aboutChecks span{transition:.25s;animation:softPulse 5s ease-in-out infinite}.aboutChecks span:nth-child(2n){animation-delay:.7s}.aboutChecks span:hover{transform:translateX(6px);background:rgba(255,255,255,.12)}
+.companyCard{animation:fadeUp .85s both;transition:.3s}.companyCard:hover{transform:translateY(-5px);box-shadow:0 24px 55px rgba(8,47,73,.1)}.companyIcon{animation:iconFloat 3.8s ease-in-out infinite}
+.contactInfo{animation:fadeRight .8s both}.contactForm{animation:fadeLeft .8s .12s both}.contactChannels>div{transition:.3s;animation:fadeUp .65s both}.contactChannels>div:nth-child(2){animation-delay:.08s}.contactChannels>div:nth-child(3){animation-delay:.16s}.contactChannels>div:nth-child(4){animation-delay:.24s}.contactChannels>div:hover{transform:translateY(-7px);box-shadow:0 18px 40px rgba(8,47,73,.09);border-color:#9cdeea}.contactChannels>div:hover .featureIcon{animation:iconBounce .55s ease}
+.contactForm input,.contactForm select,.contactForm textarea{transition:border-color .25s,box-shadow .25s,transform .25s}.contactForm input:focus,.contactForm select:focus,.contactForm textarea:focus{transform:translateY(-1px)}
+.featureCard{animation:fadeUp .75s both}.featureCard:nth-child(2){animation-delay:.08s}.featureCard:nth-child(3){animation-delay:.16s}.featureCard:nth-child(4){animation-delay:.24s}.featureCard:nth-child(5){animation-delay:.32s}.featureCard:nth-child(6){animation-delay:.4s}.featureCard:hover .featureIcon{animation:iconBounce .55s ease}
+.channelStrip .stripInner>div{animation:channelFloat 4s ease-in-out infinite}.channelStrip .stripInner>div:nth-child(3){animation-delay:.5s}.channelStrip .stripInner>div:nth-child(4){animation-delay:1s}.channelStrip .stripInner>div:nth-child(5){animation-delay:1.5s}
+.step{animation:fadeRight .65s both}.step:nth-child(2){animation-delay:.08s}.step:nth-child(3){animation-delay:.16s}.step:nth-child(4){animation-delay:.24s}.step:nth-child(5){animation-delay:.32s}.step b{transition:.3s}.step:hover b{transform:scale(1.12) rotate(5deg);background:#0e607b}
+.priceCard{animation:fadeUp .7s both}.priceCard:nth-child(2){animation-delay:.09s}.priceCard:nth-child(3){animation-delay:.18s}.priceCard:nth-child(4){animation-delay:.27s}.priceCard.popular{animation:popularRise .8s .09s both}.popularTag{animation:tagGlow 2.8s ease-in-out infinite}
+.ctaBox{position:relative;overflow:hidden;animation:fadeUp .8s both}.ctaBox:before{content:"";position:absolute;width:240px;height:240px;border-radius:50%;right:-70px;top:-100px;background:rgba(255,255,255,.08);animation:ctaOrb 7s ease-in-out infinite}.ctaBox>*{position:relative;z-index:1}
+.primaryBtn svg,.whiteBtn svg,.featureCard a svg{transition:transform .25s}.primaryBtn:hover svg,.whiteBtn:hover svg,.featureCard a:hover svg{transform:translateX(5px)}
+.footer{animation:fadeUp .7s both}
+@keyframes pageEnter{from{opacity:0}to{opacity:1}}
+@keyframes navDrop{from{opacity:0;transform:translateY(-18px)}to{opacity:1;transform:none}}
+@keyframes fadeUp{from{opacity:0;transform:translateY(28px)}to{opacity:1;transform:none}}
+@keyframes fadeRight{from{opacity:0;transform:translateX(-32px)}to{opacity:1;transform:none}}
+@keyframes fadeLeft{from{opacity:0;transform:translateX(32px)}to{opacity:1;transform:none}}
+@keyframes scaleIn{from{opacity:0;transform:scale(.86)}to{opacity:1;transform:scale(1)}}
+@keyframes ambientOne{0%,100%{transform:translate(0,0) scale(1)}50%{transform:translate(-45px,35px) scale(1.12)}}
+@keyframes ambientTwo{0%,100%{transform:translate(0,0)}50%{transform:translate(55px,-35px)}}
+@keyframes orbBreath{0%,100%{transform:scale(1);box-shadow:0 30px 70px rgba(8,145,178,.25)}50%{transform:scale(1.035);box-shadow:0 35px 85px rgba(6,182,212,.36)}}
+@keyframes orbitFloatA{0%,100%{transform:translate(0,0) rotate(0)}50%{transform:translate(10px,-13px) rotate(7deg)}}
+@keyframes orbitFloatB{0%,100%{transform:translate(0,0) rotate(0)}50%{transform:translate(-11px,10px) rotate(-7deg)}}
+@keyframes orbitFloatC{0%,100%{transform:translate(0,0)}50%{transform:translate(8px,-12px)}}
+@keyframes iconBounce{0%,100%{transform:none}40%{transform:translateY(-5px) scale(1.08)}70%{transform:translateY(1px)}}
+@keyframes iconFloat{0%,100%{transform:translateY(0) rotate(0)}50%{transform:translateY(-7px) rotate(3deg)}}
+@keyframes softPulse{0%,100%{border-color:rgba(255,255,255,.1)}50%{border-color:rgba(103,232,249,.3)}}
+@keyframes channelFloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-4px)}}
+@keyframes popularRise{from{opacity:0;transform:translateY(28px) scale(.97)}to{opacity:1;transform:none}}
+@keyframes tagGlow{0%,100%{box-shadow:0 0 0 rgba(6,182,212,0)}50%{box-shadow:0 0 24px rgba(6,182,212,.35)}}
+@keyframes ctaOrb{0%,100%{transform:translate(0,0) scale(1)}50%{transform:translate(-55px,45px) scale(1.15)}}
+@media(max-width:640px){.innerHero:before{width:220px;height:220px}.aboutOrb{animation-duration:.7s}.valueGrid article,.featureCard,.priceCard{animation-delay:0s!important}}
+@media(prefers-reduced-motion:reduce){*,*:before,*:after{animation-duration:.001ms!important;animation-iteration-count:1!important;transition-duration:.001ms!important}}

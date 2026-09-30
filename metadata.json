@@ -1,0 +1,8 @@
+{
+  "name": "EngageX - Omnichannel Customer Communication CRM",
+  "description": "Omnichannel customer communication and campaign management platform by Savrdh Technology for WhatsApp, SMS, and Email campaigns with visual automation, template builder, contact directory, and real-time delivery analytics.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
