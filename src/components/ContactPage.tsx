@@ -30,6 +30,14 @@ export const ContactPage: React.FC = () => {
     setSubmitted(true);
   };
 
+  const navigateToSection = (sectionId: string) => {
+    setCurrentView('landing');
+    setTimeout(() => {
+      const el = document.getElementById(sectionId);
+      if (el) el.scrollIntoView({ behavior: 'smooth' });
+    }, 60);
+  };
+
   return (
     <main>
       {/* Top Nav */}
@@ -45,20 +53,29 @@ export const ContactPage: React.FC = () => {
         </div>
 
         <div className="navLinks">
-          <button onClick={() => setCurrentView('landing')} style={{ background: 'transparent', border: 0, cursor: 'pointer' }}>
+          <button onClick={() => setCurrentView('landing')} style={{ background: 'transparent', border: 0, cursor: 'pointer', font: 'inherit', color: 'inherit' }}>
             Home
           </button>
-          <button onClick={() => setCurrentView('about')} style={{ background: 'transparent', border: 0, cursor: 'pointer' }}>
+          <button onClick={() => navigateToSection('about')} style={{ background: 'transparent', border: 0, cursor: 'pointer', font: 'inherit', color: 'inherit' }}>
             About Us
           </button>
-          <button onClick={() => setCurrentView('contact')} style={{ background: 'transparent', border: 0, cursor: 'pointer', fontWeight: 800 }}>
+          <button onClick={() => navigateToSection('features')} style={{ background: 'transparent', border: 0, cursor: 'pointer', font: 'inherit', color: 'inherit' }}>
+            Features
+          </button>
+          <button onClick={() => navigateToSection('pricing')} style={{ background: 'transparent', border: 0, cursor: 'pointer', font: 'inherit', color: 'inherit' }}>
+            Pricing
+          </button>
+          <button onClick={() => navigateToSection('contact')} style={{ background: 'transparent', border: 0, cursor: 'pointer', fontWeight: 800, font: 'inherit', color: 'inherit' }}>
             Contact
           </button>
         </div>
 
         <div className="navActions">
+          <button className="ghostBtn" onClick={() => setCurrentView('landing')}>
+            Back to Website
+          </button>
           <button className="primaryBtn small" onClick={() => { setAppTab('dashboard'); setCurrentView('app'); }}>
-            Explore Product <ArrowRight size={16} />
+            CRM Demo <ArrowRight size={16} />
           </button>
         </div>
       </nav>

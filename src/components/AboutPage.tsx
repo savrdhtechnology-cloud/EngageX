@@ -16,6 +16,14 @@ import { useApp } from '../context/AppContext';
 export const AboutPage: React.FC = () => {
   const { setCurrentView, setAppTab } = useApp();
 
+  const navigateToSection = (sectionId: string) => {
+    setCurrentView('landing');
+    setTimeout(() => {
+      const el = document.getElementById(sectionId);
+      if (el) el.scrollIntoView({ behavior: 'smooth' });
+    }, 60);
+  };
+
   return (
     <main className="subPage">
       {/* Top Nav */}
@@ -31,20 +39,29 @@ export const AboutPage: React.FC = () => {
         </div>
 
         <div className="navLinks">
-          <button onClick={() => setCurrentView('landing')} style={{ background: 'transparent', border: 0, cursor: 'pointer' }}>
+          <button onClick={() => setCurrentView('landing')} style={{ background: 'transparent', border: 0, cursor: 'pointer', font: 'inherit', color: 'inherit' }}>
             Home
           </button>
-          <button onClick={() => setCurrentView('about')} style={{ background: 'transparent', border: 0, cursor: 'pointer', fontWeight: 800 }}>
+          <button onClick={() => navigateToSection('about')} style={{ background: 'transparent', border: 0, cursor: 'pointer', fontWeight: 800, font: 'inherit', color: 'inherit' }}>
             About Us
           </button>
-          <button onClick={() => setCurrentView('contact')} style={{ background: 'transparent', border: 0, cursor: 'pointer' }}>
+          <button onClick={() => navigateToSection('features')} style={{ background: 'transparent', border: 0, cursor: 'pointer', font: 'inherit', color: 'inherit' }}>
+            Features
+          </button>
+          <button onClick={() => navigateToSection('pricing')} style={{ background: 'transparent', border: 0, cursor: 'pointer', font: 'inherit', color: 'inherit' }}>
+            Pricing
+          </button>
+          <button onClick={() => navigateToSection('contact')} style={{ background: 'transparent', border: 0, cursor: 'pointer', font: 'inherit', color: 'inherit' }}>
             Contact
           </button>
         </div>
 
         <div className="navActions">
+          <button className="ghostBtn" onClick={() => setCurrentView('landing')}>
+            Back to Website
+          </button>
           <button className="primaryBtn small" onClick={() => { setAppTab('dashboard'); setCurrentView('app'); }}>
-            Open CRM Workspace <ArrowRight size={16} />
+            CRM Demo <ArrowRight size={16} />
           </button>
         </div>
       </nav>
@@ -64,11 +81,11 @@ export const AboutPage: React.FC = () => {
               and grow through WhatsApp, SMS, and Email from one unified workspace.
             </p>
             <div className="heroActions">
-              <button className="primaryBtn" onClick={() => setCurrentView('contact')}>
+              <button className="primaryBtn" onClick={() => navigateToSection('contact')}>
                 Talk to our team <ArrowRight size={18} />
               </button>
               <button className="secondaryBtn" onClick={() => setCurrentView('landing')}>
-                Back to EngageX
+                Back to Website
               </button>
             </div>
           </div>
@@ -179,7 +196,7 @@ export const AboutPage: React.FC = () => {
               a reliable way to communicate with customers across multiple channels with enterprise security.
             </p>
           </div>
-          <button className="primaryBtn" onClick={() => setCurrentView('contact')}>
+          <button className="primaryBtn" onClick={() => navigateToSection('contact')}>
             Contact Us <ArrowRight size={18} />
           </button>
         </div>

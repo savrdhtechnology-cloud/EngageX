@@ -15,6 +15,9 @@ import {
   Target,
   ExternalLink,
   Users,
+  Building2,
+  Phone,
+  Send,
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 
@@ -111,6 +114,8 @@ const plans = [
 export const LandingPage: React.FC = () => {
   const { setCurrentView, setAppTab } = useApp();
   const [slide, setSlide] = useState(0);
+  const [contactSubmitted, setContactSubmitted] = useState(false);
+  const [contactForm, setContactForm] = useState({ name: '', email: '', phone: '', message: '' });
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -126,11 +131,18 @@ export const LandingPage: React.FC = () => {
     setCurrentView('app');
   };
 
+  const scrollTo = (id: string) => {
+    const el = document.getElementById(id);
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth' });
+    }
+  };
+
   return (
     <main>
       {/* Top Navigation */}
       <nav className="nav shell">
-        <div className="brand" style={{ cursor: 'pointer' }} onClick={() => setCurrentView('landing')}>
+        <div className="brand" style={{ cursor: 'pointer' }} onClick={() => scrollTo('top')}>
           <div className="brandMark">
             <Sparkles size={18} />
           </div>
@@ -141,20 +153,51 @@ export const LandingPage: React.FC = () => {
         </div>
 
         <div className="navLinks">
-          <button
-            onClick={() => setCurrentView('about')}
-            style={{ background: 'transparent', border: 0, cursor: 'pointer', font: 'inherit', color: 'inherit' }}
+          <a
+            href="#about"
+            onClick={(e) => {
+              e.preventDefault();
+              scrollTo('about');
+            }}
           >
             About Us
-          </button>
-          <button
-            onClick={() => setCurrentView('contact')}
-            style={{ background: 'transparent', border: 0, cursor: 'pointer', font: 'inherit', color: 'inherit' }}
+          </a>
+          <a
+            href="#features"
+            onClick={(e) => {
+              e.preventDefault();
+              scrollTo('features');
+            }}
+          >
+            Features
+          </a>
+          <a
+            href="#workflow"
+            onClick={(e) => {
+              e.preventDefault();
+              scrollTo('workflow');
+            }}
+          >
+            Workflows
+          </a>
+          <a
+            href="#pricing"
+            onClick={(e) => {
+              e.preventDefault();
+              scrollTo('pricing');
+            }}
+          >
+            Pricing
+          </a>
+          <a
+            href="#contact"
+            onClick={(e) => {
+              e.preventDefault();
+              scrollTo('contact');
+            }}
           >
             Contact
-          </button>
-          <a href="#features">Features</a>
-          <a href="#pricing">Pricing</a>
+          </a>
           <button
             onClick={() => handleOpenApp('dashboard')}
             style={{
@@ -345,8 +388,83 @@ export const LandingPage: React.FC = () => {
         </div>
       </section>
 
+      {/* About Us Section */}
+      <section className="section shell" id="about" style={{ scrollMarginTop: '80px' }}>
+        <div className="sectionHead">
+          <div className="kicker">ABOUT ENGAGEX</div>
+          <h2>
+            Customer communication, <span>built for modern businesses.</span>
+          </h2>
+          <p>
+            EngageX is an enterprise-grade omnichannel customer engagement platform designed by Savrdh Technology to help
+            growing brands connect, engage, and scale across WhatsApp, Carrier SMS, and Email from one unified workspace.
+          </p>
+        </div>
+
+        <div className="aboutStatement">
+          <div>
+            <div className="kicker">OUR PRODUCT</div>
+            <h2>Enterprise communication engineered by Savrdh Technology.</h2>
+          </div>
+          <p>
+            Savrdh Technology develops digital products and software solutions focused on making business operations
+            smarter, connected, and scalable. EngageX extends that vision to customer communication by bringing
+            essential messaging channels, campaigns, analytics, and visual automations into a single reliable platform.
+          </p>
+        </div>
+
+        <div className="valueGrid" style={{ marginBottom: '40px' }}>
+          <article>
+            <div className="featureIcon">
+              <Target size={22} />
+            </div>
+            <h3>Our Mission</h3>
+            <p>Make customer communication easier to manage, measure, and scale for businesses of all sizes with zero carrier friction.</p>
+          </article>
+          <article>
+            <div className="featureIcon">
+              <Zap size={22} />
+            </div>
+            <h3>Our Approach</h3>
+            <p>Keep everyday workflows intuitive for marketing and support teams while delivering high-throughput enterprise infrastructure.</p>
+          </article>
+          <article>
+            <div className="featureIcon">
+              <ShieldCheck size={22} />
+            </div>
+            <h3>Built for Business</h3>
+            <p>TRAI DLT compliance, Meta Graph Cloud API verification, role controls, and multi-workspace architecture baked in.</p>
+          </article>
+        </div>
+
+        {/* Parent Brand Card */}
+        <div className="companyCard">
+          <div className="companyIcon">
+            <Building2 size={28} />
+          </div>
+          <div>
+            <div className="kicker">PARENT BRAND</div>
+            <h2>Savrdh Technology</h2>
+            <p>
+              EngageX is developed and operated as a flagship SaaS platform by Savrdh Technology for organizations that want
+              a reliable way to communicate with their customers across multiple channels with enterprise security.
+            </p>
+          </div>
+          <a
+            href="#contact"
+            className="primaryBtn"
+            onClick={(e) => {
+              e.preventDefault();
+              scrollTo('contact');
+            }}
+          >
+            Contact Team <ArrowRight size={18} />
+          </a>
+        </div>
+      </section>
+
       {/* Features Section */}
-      <section className="section shell" id="features">
+      <section className="section shell" id="features" style={{ scrollMarginTop: '80px' }}>
         <div className="sectionHead">
           <div className="kicker">COMPLETE OMNICHANNEL SUITE</div>
           <h2>
@@ -515,6 +633,120 @@ export const LandingPage: React.FC = () => {
         </p>
       </section>
 
+      {/* Contact Section */}
+      <section className="section shell" id="contact" style={{ scrollMarginTop: '80px' }}>
+        <div className="sectionHead">
+          <div className="kicker">GET IN TOUCH</div>
+          <h2>
+            Let’s build better <span>customer communication.</span>
+          </h2>
+          <p>
+            Have questions about Meta WhatsApp Cloud API approval, telecom DLT registration, custom webhooks, or enterprise tier onboarding? Our solutions team is here to assist.
+          </p>
+        </div>
+
+        <div className="contactLayout">
+          <div className="contactInfo">
+            <div className="kicker">SAVRDH TECHNOLOGY</div>
+            <h2>Talk directly with our product team.</h2>
+            <p>
+              Whether you need guidance on high-volume WhatsApp broadcasts, transactional SMS sender IDs, or custom enterprise CRM integrations, we respond within hours.
+            </p>
+
+            <div className="contactChannels">
+              <div>
+                <div className="featureIcon">
+                  <Mail size={18} />
+                </div>
+                <b>Email Support</b>
+                <span style={{ fontSize: '12px', color: '#0891b2', fontWeight: 600 }}>savrdhtechnology@gmail.com</span>
+                <small>24/7 technical & sales support</small>
+              </div>
+
+              <div>
+                <div className="featureIcon">
+                  <MessageCircle size={18} />
+                </div>
+                <b>WhatsApp Desk</b>
+                <span style={{ fontSize: '12px', color: '#16a34a', fontWeight: 600 }}>Official Cloud API</span>
+                <small>Instant answers & sandbox access</small>
+              </div>
+            </div>
+          </div>
+
+          <form
+            className="contactForm"
+            onSubmit={(e) => {
+              e.preventDefault();
+              setContactSubmitted(true);
+            }}
+          >
+            {contactSubmitted ? (
+              <div style={{ gridColumn: '1 / -1', padding: '30px', textAlign: 'center', background: '#ecfdf5', borderRadius: '12px', border: '1px solid #a7f3d0' }}>
+                <CheckCircle2 size={36} style={{ color: '#059669', margin: '0 auto 10px' }} />
+                <h3 style={{ color: '#065f46', margin: '0 0 6px' }}>Thank you! Your message has been sent.</h3>
+                <p style={{ color: '#047857', fontSize: '13px', margin: 0 }}>Our solutions team at Savrdh Technology will reach out to you shortly.</p>
+                <button
+                  type="button"
+                  onClick={() => setContactSubmitted(false)}
+                  style={{ marginTop: '15px', background: '#059669', color: '#fff', border: 0, padding: '8px 16px', borderRadius: '8px', cursor: 'pointer', fontSize: '12px', fontWeight: 600 }}
+                >
+                  Send another inquiry
+                </button>
+              </div>
+            ) : (
+              <>
+                <div>
+                  <label>YOUR NAME</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. Rahul Sharma"
+                    value={contactForm.name}
+                    onChange={(e) => setContactForm({ ...contactForm, name: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <label>BUSINESS EMAIL</label>
+                  <input
+                    type="email"
+                    required
+                    placeholder="rahul@company.com"
+                    value={contactForm.email}
+                    onChange={(e) => setContactForm({ ...contactForm, email: e.target.value })}
+                  />
+                </div>
+                <div className="full">
+                  <label>PHONE / WHATSAPP NUMBER</label>
+                  <input
+                    type="tel"
+                    placeholder="+91 98765 43210"
+                    value={contactForm.phone}
+                    onChange={(e) => setContactForm({ ...contactForm, phone: e.target.value })}
+                  />
+                </div>
+                <div className="full">
+                  <label>HOW CAN WE HELP?</label>
+                  <textarea
+                    rows={4}
+                    required
+                    placeholder="Tell us about your estimated monthly message volumes and target audience..."
+                    value={contactForm.message}
+                    onChange={(e) => setContactForm({ ...contactForm, message: e.target.value })}
+                  />
+                </div>
+                <button type="submit" className="primaryBtn formBtn">
+                  Send Inquiry <Send size={15} />
+                </button>
+                <div className="formNote">
+                  We respect your privacy. No spam, ever.
+                </div>
+              </>
+            )}
+          </form>
+        </div>
+      </section>
+
       {/* CTA Box */}
       <section className="ctaSection">
         <div className="shell ctaBox">
@@ -527,8 +759,12 @@ export const LandingPage: React.FC = () => {
             <button className="whiteBtn" onClick={() => handleOpenApp('dashboard')}>
               Open CRM Workspace <ArrowRight size={18} />
             </button>
-            <button
-              onClick={() => setCurrentView('contact')}
+            <a
+              href="#contact"
+              onClick={(e) => {
+                e.preventDefault();
+                scrollTo('contact');
+              }}
               style={{
                 background: 'rgba(255,255,255,0.15)',
                 color: '#ffffff',
@@ -538,17 +774,20 @@ export const LandingPage: React.FC = () => {
                 cursor: 'pointer',
                 fontWeight: 700,
                 fontSize: '12px',
+                textDecoration: 'none',
+                display: 'inline-flex',
+                alignItems: 'center',
               }}
             >
               Contact Sales Team
-            </button>
+            </a>
           </div>
         </div>
       </section>
 
       {/* Brand Footer */}
       <footer className="footer shell">
-        <div className="brand" style={{ cursor: 'pointer' }} onClick={() => setCurrentView('landing')}>
+        <div className="brand" style={{ cursor: 'pointer' }} onClick={() => scrollTo('top')}>
           <div className="brandMark">
             <Sparkles size={18} />
           </div>
@@ -557,7 +796,61 @@ export const LandingPage: React.FC = () => {
             <span>A Product by Savrdh Technology</span>
           </div>
         </div>
-        <p>Connect. Engage. Grow.</p>
+
+        <div style={{ display: 'flex', gap: '20px', flexWrap: 'wrap', fontSize: '12px' }}>
+          <a
+            href="#about"
+            onClick={(e) => {
+              e.preventDefault();
+              scrollTo('about');
+            }}
+            style={{ color: '#607589', textDecoration: 'none' }}
+          >
+            About Us
+          </a>
+          <a
+            href="#features"
+            onClick={(e) => {
+              e.preventDefault();
+              scrollTo('features');
+            }}
+            style={{ color: '#607589', textDecoration: 'none' }}
+          >
+            Features
+          </a>
+          <a
+            href="#workflow"
+            onClick={(e) => {
+              e.preventDefault();
+              scrollTo('workflow');
+            }}
+            style={{ color: '#607589', textDecoration: 'none' }}
+          >
+            Workflows
+          </a>
+          <a
+            href="#pricing"
+            onClick={(e) => {
+              e.preventDefault();
+              scrollTo('pricing');
+            }}
+            style={{ color: '#607589', textDecoration: 'none' }}
+          >
+            Pricing
+          </a>
+          <a
+            href="#contact"
+            onClick={(e) => {
+              e.preventDefault();
+              scrollTo('contact');
+            }}
+            style={{ color: '#607589', textDecoration: 'none' }}
+          >
+            Contact
+          </a>
+        </div>
+
+        <p style={{ margin: 0 }}>Connect. Engage. Grow.</p>
         <span>© 2026 Savrdh Technology. All rights reserved.</span>
       </footer>
     </main>
