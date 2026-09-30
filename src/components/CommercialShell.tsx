@@ -8,6 +8,7 @@ import {
   BarChart3,
   Bot,
   Users,
+  Building2,
   CreditCard,
   Settings,
   Sparkles,
@@ -27,6 +28,7 @@ import { AppNotification } from '../types';
 
 const menuItems = [
   { id: 'dashboard', name: 'Dashboard', icon: LayoutDashboard },
+  { id: 'clients', name: 'Clients', icon: Building2 },
   { id: 'contacts', name: 'Contacts', icon: ContactRound },
   { id: 'campaigns', name: 'Campaigns', icon: Megaphone },
   { id: 'messages', name: 'Live Inbox', icon: MessageCircle, badge: 'Live' },
