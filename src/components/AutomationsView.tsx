@@ -43,11 +43,12 @@ export const AutomationsView: React.FC = () => {
     setIsRunningTest(false);
   };
 
-  const handleCreateAutomation = (e: React.FormEvent) => {
+  const handleCreateAutomation = async (e: React.FormEvent) => {
+    try {
     e.preventDefault();
     if (!newName.trim()) return;
 
-    addAutomation({
+    await addAutomation({
       name: newName,
       trigger_event: newTrigger,
       trigger_condition: newCondition,
@@ -83,6 +84,7 @@ export const AutomationsView: React.FC = () => {
 
     setIsNewModalOpen(false);
     setNewName('');
+    } catch (error) { console.error(error); }
   };
 
   return (

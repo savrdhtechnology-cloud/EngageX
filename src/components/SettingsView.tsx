@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   Settings,
   Building,
@@ -14,13 +14,15 @@ import { CommercialShell } from './CommercialShell';
 import { useApp } from '../context/AppContext';
 
 export const SettingsView: React.FC = () => {
-  const { auditLogs, resetToDefaults } = useApp();
+  const { auditLogs, resetToDefaults, addAuditLog, workspaceSettings, saveWorkspaceSettings } = useApp();
 
-  const [workspaceName, setWorkspaceName] = useState('Savrdh Technology Enterprise');
-  const [supportEmail, setSupportEmail] = useState('support@savrdh.com');
-  const [dltEntityId, setDltEntityId] = useState('110156982300001');
-  const [senderHeader, setSenderHeader] = useState('SVRDTC');
-  const [optOutKeyword, setOptOutKeyword] = useState('STOP');
+  const saved = workspaceSettings || {};
+  const [timezone, setTimezone] = useState(saved.timezone || 'Asia/Kolkata');
+  const [workspaceName, setWorkspaceName] = useState(saved.workspaceName || 'Savrdh Technology Enterprise');
+  const [supportEmail, setSupportEmail] = useState(saved.supportEmail || 'support@savrdh.com');
+  const [dltEntityId, setDltEntityId] = useState(saved.dltEntityId || '110156982300001');
+  const [senderHeader, setSenderHeader] = useState(saved.senderHeader || 'SVRDTC');
+  const [optOutKeyword, setOptOutKeyword] = useState(saved.optOutKeyword || 'STOP');
   const [auditSearch, setAuditSearch] = useState('');
   const [notice, setNotice] = useState('');
 
@@ -35,15 +37,24 @@ export const SettingsView: React.FC = () => {
     );
   }, [auditLogs, auditSearch]);
 
-  const handleSaveProfile = (e: React.FormEvent) => {
+  useEffect(() => {
+    setWorkspaceName(saved.workspaceName || ''); setSupportEmail(saved.supportEmail || '');
+    setDltEntityId(saved.dltEntityId || ''); setSenderHeader(saved.senderHeader || '');
+    setOptOutKeyword(saved.optOutKeyword || 'STOP'); setTimezone(saved.timezone || 'Asia/Kolkata');
+  }, [workspaceSettings]);
+  const handleSaveProfile = async (e: React.FormEvent) => {
     e.preventDefault();
-    setNotice('Workspace configuration saved successfully.');
+    try {
+      if (!saveWorkspaceSettings) throw new Error('Workspace is unavailable.');
+      await saveWorkspaceSettings({workspaceName,supportEmail,dltEntityId,senderHeader,optOutKeyword,timezone});
+      setNotice('Workspace settings saved to the database.');
+    } catch (error) { setNotice(error instanceof Error ? error.message : 'Settings could not be saved.'); }
   };
 
   const handleReset = () => {
     if (confirm('Are you sure you want to reset workspace data to demo defaults? All custom changes will be restored.')) {
       resetToDefaults();
-      setNotice('Workspace reset to factory defaults.');
+      setNotice('Demo reset is disabled for the live database.');
     }
   };
 
@@ -83,7 +94,7 @@ export const SettingsView: React.FC = () => {
 
               <div className="field">
                 <label>Timezone</label>
-                <select defaultValue="Asia/Kolkata">
+                <select value={timezone} onChange={e => setTimezone(e.target.value)}>
                   <option value="Asia/Kolkata">Asia/Kolkata (IST - GMT+5:30)</option>
                   <option value="UTC">UTC (Universal Coordinated Time)</option>
                   <option value="America/New_York">America/New_York (EST)</option>
@@ -146,11 +157,11 @@ export const SettingsView: React.FC = () => {
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 10px', background: '#f8fafc', borderRadius: '8px' }}>
                 <span style={{ color: '#64748b' }}>Data Storage:</span>
-                <b>Encrypted Local Ledger + Active Sync</b>
+                <b>Supabase · Savrdh Technology</b>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 10px', background: '#f8fafc', borderRadius: '8px' }}>
                 <span style={{ color: '#64748b' }}>Delivery Uptime SLA:</span>
-                <b style={{ color: '#059669' }}>99.98%</b>
+                <b style={{ color: '#059669' }}>Not monitored</b>
               </div>
             </div>
           </div>

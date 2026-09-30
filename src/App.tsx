@@ -4,7 +4,8 @@
  */
 
 import React from 'react';
-import { AppProvider, useApp } from './context/AppContext';
+import { useApp } from './context/AppContext';
+import { LiveAppProvider as AppProvider } from './context/LiveAppProvider';
 import { LandingPage } from './components/LandingPage';
 import { AboutPage } from './components/AboutPage';
 import { ContactPage } from './components/ContactPage';
@@ -22,12 +23,12 @@ import { BillingView } from './components/BillingView';
 import { SettingsView } from './components/SettingsView';
 
 const AppContent: React.FC = () => {
-  const { currentView, appTab } = useApp();
+  const { currentView, appTab, userSession } = useApp();
 
   if (currentView === 'landing') return <LandingPage />;
   if (currentView === 'about') return <AboutPage />;
   if (currentView === 'contact') return <ContactPage />;
-  if (currentView === 'login') return <LoginPage />;
+  if (currentView === 'login' || !userSession.isAuthenticated) return <LoginPage />;
 
   // CRM Workspace views
   switch (appTab) {

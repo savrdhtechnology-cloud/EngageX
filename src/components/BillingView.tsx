@@ -65,12 +65,12 @@ export const BillingView: React.FC = () => {
 
   const handleTopup = () => {
     addCredits(topupAmount);
-    setNotice(`Successfully recharged ${topupAmount.toLocaleString()} message credits!`);
+    setNotice('Payment setup is pending. No credits were added and no payment was collected.');
     setIsTopupOpen(false);
   };
 
   const handleDownloadInvoice = (invNumber: string) => {
-    setNotice(`Invoice ${invNumber} downloaded.`);
+    setNotice(`Invoice ${invNumber} is sample data. No real invoice exists to download.`);
   };
 
   return (
@@ -201,7 +201,7 @@ export const BillingView: React.FC = () => {
                   disabled={isCurrent}
                   onClick={() => {
                     changePlan(plan.code);
-                    setNotice(`Switched subscription to ${plan.name}!`);
+                    setNotice('Subscription checkout is not configured. Your plan has not changed.');
                   }}
                   style={{ marginTop: '16px', width: '100%' }}
                 >
@@ -235,11 +235,7 @@ export const BillingView: React.FC = () => {
               </tr>
             </thead>
             <tbody>
-              {[
-                { id: 'INV-2026-0901', date: 'Sep 01, 2026', desc: 'Pro Scale Subscription - September', amount: '₹9,438.82 (incl. 18% GST)', status: 'PAID' },
-                { id: 'INV-2026-0801', date: 'Aug 01, 2026', desc: 'Pro Scale Subscription - August', amount: '₹9,438.82 (incl. 18% GST)', status: 'PAID' },
-                { id: 'INV-2026-0715', date: 'Jul 15, 2026', desc: 'Top-up 25,000 Message Credits', amount: '₹2,950.00 (incl. 18% GST)', status: 'PAID' },
-              ].map((inv) => (
+              {([] as {id:string;date:string;desc:string;amount:string;status:string}[]).map((inv) => (
                 <tr key={inv.id}>
                   <td><b>{inv.id}</b></td>
                   <td>{inv.date}</td>

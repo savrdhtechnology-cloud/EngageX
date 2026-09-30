@@ -52,7 +52,8 @@ export const TemplatesView: React.FC = () => {
     return [...text.matchAll(/{{\s*([a-zA-Z0-9_]+)\s*}}/g)].map((m) => m[1]);
   };
 
-  const handleSave = (e: React.FormEvent) => {
+  const handleSave = async (e: React.FormEvent) => {
+    try {
     e.preventDefault();
     if (!name.trim() || !body.trim()) {
       setError('Template name and content body are required.');
@@ -66,23 +67,24 @@ export const TemplatesView: React.FC = () => {
       return;
     }
 
-    addTemplate({
+    await addTemplate({
       name: name.toLowerCase().replace(/\s+/g, '_'),
       channel,
       category,
-      status: 'approved',
-      dlt_template_id: channel === 'sms' ? dltTemplateId || '1407168923000' : undefined,
+      status: 'draft',
+      dlt_template_id: channel === 'sms' ? dltTemplateId || undefined : undefined,
       subject: channel === 'email' ? subject : undefined,
       body,
       variables: vars,
     });
 
-    setNotice(`Template "${name}" created and verified.`);
+    setNotice(`Template "${name}" saved as a draft. Provider approval is pending.`);
     setIsModalOpen(false);
     setName('');
     setBody('');
     setSubject('');
     setError('');
+    } catch (error) { console.error(error); }
   };
 
   return (

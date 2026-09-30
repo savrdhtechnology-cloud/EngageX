@@ -31,6 +31,7 @@ export const MessagesView: React.FC = () => {
   const [textBody, setTextBody] = useState('');
   const [activeChannel, setActiveChannel] = useState<ChannelType>('whatsapp');
   const [emailSubject, setEmailSubject] = useState('');
+  const [error, setError] = useState('');
   const [showTemplates, setShowTemplates] = useState(false);
   const [isSimulating, setIsSimulating] = useState(false);
 
@@ -70,16 +71,20 @@ export const MessagesView: React.FC = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [activeMessages]);
 
-  const handleSend = (e?: React.FormEvent) => {
+  const handleSend = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     if (!textBody.trim() || !selectedContact) return;
 
-    sendMessage({
+    try {
+    await sendMessage({
       contact_id: selectedContact.id,
       channel: activeChannel,
       body: textBody,
       subject: activeChannel === 'email' ? emailSubject || 'Message from Savrdh EngageX' : undefined,
     });
+
+    setError('');
+    } catch (error) { setError(error instanceof Error ? error.message : 'Message could not be sent.'); return; }
 
     setTextBody('');
     setEmailSubject('');
@@ -111,6 +116,7 @@ export const MessagesView: React.FC = () => {
       title="Omnichannel Live Inbox"
       subtitle="Interactive two-way conversations across WhatsApp Cloud API, SMS, and Email."
     >
+      {error && <div className="notice errorNotice">{error}</div>}
       <div
         style={{
           display: 'grid',

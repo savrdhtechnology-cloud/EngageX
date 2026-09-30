@@ -22,19 +22,22 @@ export const TeamView: React.FC = () => {
   const [notice, setNotice] = useState('');
   const [error, setError] = useState('');
 
-  const handleInvite = (e: React.FormEvent) => {
+  const handleInvite = async (e: React.FormEvent) => {
+    try {
     e.preventDefault();
     if (!email.trim()) {
       setError('Email address is required.');
       return;
     }
 
-    inviteTeamMember(email, role, name);
-    setNotice(`Invitation sent to ${email} as ${role}.`);
+    if (team.some(m => m.email.trim().toLowerCase() === email.trim().toLowerCase())) { setError('This email is already on the team.'); return; }
+    await inviteTeamMember(email.trim().toLowerCase(), role, name);
+    setNotice(`Invitation request saved for ${email} as ${role}. No email was sent.`);
     setIsInviteOpen(false);
     setEmail('');
     setName('');
     setError('');
+    } catch (error) { console.error(error); }
   };
 
   return (

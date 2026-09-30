@@ -27,6 +27,7 @@ import {
   CheckCheck,
 } from 'lucide-react';
 import { CommercialShell } from './CommercialShell';
+import { summarize } from '../lib/metrics';
 import { useApp } from '../context/AppContext';
 
 export const DashboardView: React.FC = () => {
@@ -49,15 +50,11 @@ export const DashboardView: React.FC = () => {
     const totalCampaigns = campaigns.length;
     const runningCampaigns = campaigns.filter((c) => c.status === 'running' || c.status === 'scheduled').length;
 
-    const totalSent = campaigns.reduce((acc, c) => acc + c.sent_count, 0) + messages.length;
-    const totalDelivered = campaigns.reduce((acc, c) => acc + c.delivered_count, 0) + messages.filter((m) => m.status === 'delivered' || m.status === 'read').length;
-    const totalFailed = campaigns.reduce((acc, c) => acc + c.failed_count, 0);
-
-    const deliveryRate = totalSent > 0 ? Math.round((totalDelivered / totalSent) * 100) : 96.4;
-
-    const waCount = billing.whatsapp_usage;
-    const smsCount = billing.sms_usage;
-    const emailCount = billing.email_usage;
+    const totals = summarize(campaigns, messages, parseInt(timeRange), selectedChannel);
+    const { totalSent, delivered: totalDelivered, failed: totalFailed, deliveryRate } = totals;
+    const waCount = summarize(campaigns, messages, parseInt(timeRange), 'whatsapp').totalSent;
+    const smsCount = summarize(campaigns, messages, parseInt(timeRange), 'sms').totalSent;
+    const emailCount = summarize(campaigns, messages, parseInt(timeRange), 'email').totalSent;
 
     return {
       totalContacts,
@@ -72,7 +69,7 @@ export const DashboardView: React.FC = () => {
       smsCount,
       emailCount,
     };
-  }, [contacts, campaigns, messages, billing]);
+  }, [contacts, campaigns, messages, timeRange, selectedChannel]);
 
   // Timeseries simulation (7d, 14d, 30d)
   const timeseries = useMemo(() => {
@@ -84,10 +81,14 @@ export const DashboardView: React.FC = () => {
       const d = new Date(baseDate);
       d.setDate(d.getDate() - i);
       const dayLabel = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-      const rawVal = Math.floor(130 + Math.sin(i * 0.7) * 75 + (i % 4 === 0 ? 190 : 35));
-      const wa = Math.floor(rawVal * 0.56);
-      const sms = Math.floor(rawVal * 0.26);
-      const em = rawVal - wa - sms;
+      const sameDay = (date: string) => new Date(date).toDateString() === d.toDateString();
+      const dayCampaigns = campaigns.filter(c => sameDay(c.created_at));
+      const dayMessages = messages.filter(m => sameDay(m.created_at));
+      const total = summarize(dayCampaigns, dayMessages);
+      const rawVal = total.totalSent;
+      const wa = summarize(dayCampaigns, dayMessages, null, 'whatsapp').totalSent;
+      const sms = summarize(dayCampaigns, dayMessages, null, 'sms').totalSent;
+      const em = summarize(dayCampaigns, dayMessages, null, 'email').totalSent;
 
       let displayVal = rawVal;
       if (selectedChannel === 'whatsapp') displayVal = wa;
@@ -101,11 +102,11 @@ export const DashboardView: React.FC = () => {
         whatsapp: wa,
         sms,
         email: em,
-        deliveryRate: Math.min(99, Math.floor(95 + Math.random() * 4)),
+        deliveryRate: total.deliveryRate,
       });
     }
     return data;
-  }, [timeRange, selectedChannel]);
+  }, [timeRange, selectedChannel, campaigns, messages]);
 
   const maxVolume = Math.max(...timeseries.map((t) => t.displayVal), 240);
 
@@ -114,22 +115,16 @@ export const DashboardView: React.FC = () => {
     const hours = [];
     for (let h = 0; h < 24; h++) {
       const label = `${h.toString().padStart(2, '0')}:00`;
-      let count = 40;
-      if (h >= 7 && h < 10) count = 280 + (h - 7) * 90;
-      else if (h >= 10 && h <= 13) count = 750 + Math.floor(Math.sin(h) * 160);
-      else if (h > 13 && h < 17) count = 440 + Math.floor(Math.sin(h) * 80);
-      else if (h >= 17 && h <= 20) count = 890 + Math.floor(Math.cos(h) * 120);
-      else if (h > 20) count = 180 - (h - 20) * 45;
-      else count = 35 + Math.floor(Math.random() * 25);
-
+      const hourly = messages.filter(m => m.direction === 'outbound' && new Date(m.created_at).getHours() === h && Date.parse(m.created_at) >= Date.now() - parseInt(timeRange) * 86400000 && (selectedChannel === 'all' || m.channel === selectedChannel));
+      const count = hourly.filter(m => ['sent', 'delivered', 'read'].includes(m.status)).length;
       hours.push({
         hour: label,
         count,
-        openRate: h >= 10 && h <= 20 ? 84 : 52,
+        openRate: count ? Math.round(hourly.filter(m => m.status === 'read').length / count * 100) : 0,
       });
     }
     return hours;
-  }, []);
+  }, [messages, timeRange, selectedChannel]);
 
   const maxHourly = Math.max(...hourlyData.map((h) => h.count), 950);
 

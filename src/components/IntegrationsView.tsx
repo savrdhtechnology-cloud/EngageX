@@ -41,13 +41,15 @@ export const IntegrationsView: React.FC = () => {
     setTesting(false);
   };
 
-  const handleSaveConfig = (e: React.FormEvent) => {
+  const handleSaveConfig = async (e: React.FormEvent) => {
+    try {
     e.preventDefault();
     if (!selectedIntegration) return;
 
-    updateIntegration(selectedIntegration.id, configValues, 'connected');
-    setNotice(`${selectedIntegration.title} credentials updated and verified.`);
+    await updateIntegration(selectedIntegration.id, configValues, 'configured');
+    setNotice(`${selectedIntegration.title} Non-secret configuration saved to the database. Live credentials were not saved; secure backend setup is pending.`);
     setSelectedIntegration(null);
+    } catch (error) { console.error(error); }
   };
 
   const handleSimulateWebhook = () => {
@@ -62,7 +64,7 @@ export const IntegrationsView: React.FC = () => {
   return (
     <CommercialShell
       title="Integrations & Gateways"
-      subtitle="Connect enterprise communication providers with zero credential exposure."
+      subtitle="Provider configuration is stored in the database. Secure credential setup is pending."
     >
       {notice && (
         <div className="notice" style={{ display: 'flex', justifyContent: 'space-between' }}>
@@ -175,7 +177,7 @@ export const IntegrationsView: React.FC = () => {
                       <input
                         type="password"
                         required
-                        value={configValues.access_token || 'EAABwzL9...meta_prod'}
+                        value={configValues.access_token || ''}
                         onChange={(e) => setConfigValues({ ...configValues, access_token: e.target.value })}
                         placeholder="EAABwz..."
                       />
@@ -207,7 +209,7 @@ export const IntegrationsView: React.FC = () => {
                       <input
                         type="password"
                         required
-                        value={configValues.api_key || 'sms_live_9201982'}
+                        value={configValues.api_key || ''}
                         onChange={(e) => setConfigValues({ ...configValues, api_key: e.target.value })}
                         placeholder="Enter carrier API token"
                       />
@@ -222,7 +224,7 @@ export const IntegrationsView: React.FC = () => {
                       <input
                         type="password"
                         required
-                        value={configValues.api_key || 're_92910_live'}
+                        value={configValues.api_key || ''}
                         onChange={(e) => setConfigValues({ ...configValues, api_key: e.target.value })}
                         placeholder="re_..."
                       />
@@ -260,7 +262,7 @@ export const IntegrationsView: React.FC = () => {
                     <div className="field full">
                       <label>Secret Verification Token</label>
                       <input
-                        value={configValues.secret_token || 'whsec_9b2a7e1c5f884a20b8f2d'}
+                        value={configValues.secret_token || ''}
                         onChange={(e) => setConfigValues({ ...configValues, secret_token: e.target.value })}
                       />
                     </div>

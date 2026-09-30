@@ -12,7 +12,7 @@ import {
 import { useApp } from '../context/AppContext';
 
 export const ContactPage: React.FC = () => {
-  const { setCurrentView, setAppTab, addAuditLog } = useApp();
+  const { setCurrentView, setAppTab, addAuditLog, importContacts } = useApp();
 
   const [name, setName] = useState('');
   const [company, setCompany] = useState('');
@@ -20,14 +20,14 @@ export const ContactPage: React.FC = () => {
   const [mobile, setMobile] = useState('');
   const [interest, setInterest] = useState('Growth / Business Plan');
   const [message, setMessage] = useState('');
+  const [error, setError] = useState('');
   const [submitted, setSubmitted] = useState(false);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim() || !email.trim()) return;
 
-    addAuditLog('CONTACT_INQUIRY', 'Lead', `Received contact enquiry from ${name} (${company || 'Individual'}) - ${interest}`);
-    setSubmitted(true);
+    setError('Online inquiry submission is not configured yet. Please use the contact email or phone shown on this page.');
   };
 
   const navigateToSection = (sectionId: string) => {
@@ -181,6 +181,7 @@ export const ContactPage: React.FC = () => {
           </div>
         ) : (
           <form className="contactForm" onSubmit={handleSubmit}>
+            {error && <div className="notice errorNotice" role="alert">{error}</div>}
             <div>
               <label>Full Name *</label>
               <input required value={name} onChange={(e) => setName(e.target.value)} placeholder="Your name" />
