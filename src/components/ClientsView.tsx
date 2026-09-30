@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Building2, Plus, Search, Users, MessageCircle, ArrowRight, RefreshCw } from 'lucide-react';
 import { CommercialShell } from './CommercialShell';
 import { supabase } from '../lib/supabase';
+import { useApp } from '../context/AppContext';
 
 type ClientWorkspace = {
   id: string;
@@ -16,6 +17,7 @@ const slugify = (value: string) =>
   value.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 56);
 
 export const ClientsView: React.FC = () => {
+  const { switchWorkspace } = useApp();
   const [clients, setClients] = useState<ClientWorkspace[]>([]);
   const [query, setQuery] = useState('');
   const [showForm, setShowForm] = useState(false);
@@ -131,9 +133,15 @@ export const ClientsView: React.FC = () => {
                 <span style={{ fontSize: 10, background: '#f0f9ff', color: '#0369a1', padding: '5px 8px', borderRadius: 999 }}><Users size={12} style={{ verticalAlign: 'middle', marginRight: 4 }} /> Contacts isolated</span>
                 <span style={{ fontSize: 10, background: '#ecfdf5', color: '#15803d', padding: '5px 8px', borderRadius: 999 }}><MessageCircle size={12} style={{ verticalAlign: 'middle', marginRight: 4 }} /> WhatsApp ready</span>
               </div>
-              <div style={{ marginTop: 14, fontSize: 10, color: '#64748b', display: 'flex', justifyContent: 'space-between', gap: 10 }}>
+              <div style={{ marginTop: 14, fontSize: 10, color: '#64748b', display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'center' }}>
                 <span>{client.slug}</span>
-                <span style={{ color: '#0891b2', fontWeight: 800 }}>Workspace <ArrowRight size={12} style={{ verticalAlign: 'middle' }} /></span>
+                <button
+                  type="button"
+                  onClick={() => void switchWorkspace?.(client.slug)}
+                  style={{ border: 0, background: 'transparent', color: '#0891b2', fontWeight: 800, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 4, padding: 0 }}
+                >
+                  Open Workspace <ArrowRight size={12} />
+                </button>
               </div>
             </article>
           ))}
