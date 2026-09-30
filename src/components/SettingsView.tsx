@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   Settings,
   Building,
@@ -14,9 +14,9 @@ import { CommercialShell } from './CommercialShell';
 import { useApp } from '../context/AppContext';
 
 export const SettingsView: React.FC = () => {
-  const { auditLogs, resetToDefaults, addAuditLog } = useApp();
+  const { auditLogs, resetToDefaults, addAuditLog, workspaceSettings, saveWorkspaceSettings } = useApp();
 
-  const [saved] = useState(() => { try { return JSON.parse(localStorage.getItem('engagex_savrdh_state_v1_settings') || '{}'); } catch { return {}; } });
+  const saved = workspaceSettings || {};
   const [timezone, setTimezone] = useState(saved.timezone || 'Asia/Kolkata');
   const [workspaceName, setWorkspaceName] = useState(saved.workspaceName || 'Savrdh Technology Enterprise');
   const [supportEmail, setSupportEmail] = useState(saved.supportEmail || 'support@savrdh.com');
@@ -37,19 +37,24 @@ export const SettingsView: React.FC = () => {
     );
   }, [auditLogs, auditSearch]);
 
-  const handleSaveProfile = (e: React.FormEvent) => {
+  useEffect(() => {
+    setWorkspaceName(saved.workspaceName || ''); setSupportEmail(saved.supportEmail || '');
+    setDltEntityId(saved.dltEntityId || ''); setSenderHeader(saved.senderHeader || '');
+    setOptOutKeyword(saved.optOutKeyword || 'STOP'); setTimezone(saved.timezone || 'Asia/Kolkata');
+  }, [workspaceSettings]);
+  const handleSaveProfile = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      localStorage.setItem('engagex_savrdh_state_v1_settings', JSON.stringify({ workspaceName, supportEmail, dltEntityId, senderHeader, optOutKeyword, timezone }));
-      addAuditLog('SETTINGS_UPDATED', 'Workspace', 'Saved workspace profile');
-      setNotice('Workspace configuration saved on this device.');
-    } catch { setNotice('Settings could not be saved. Browser storage is unavailable.'); }
+      if (!saveWorkspaceSettings) throw new Error('Workspace is unavailable.');
+      await saveWorkspaceSettings({workspaceName,supportEmail,dltEntityId,senderHeader,optOutKeyword,timezone});
+      setNotice('Workspace settings saved to the database.');
+    } catch (error) { setNotice(error instanceof Error ? error.message : 'Settings could not be saved.'); }
   };
 
   const handleReset = () => {
     if (confirm('Are you sure you want to reset workspace data to demo defaults? All custom changes will be restored.')) {
       resetToDefaults();
-      setNotice('Workspace reset to factory defaults.');
+      setNotice('Demo reset is disabled for the live database.');
     }
   };
 
@@ -152,7 +157,7 @@ export const SettingsView: React.FC = () => {
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 10px', background: '#f8fafc', borderRadius: '8px' }}>
                 <span style={{ color: '#64748b' }}>Data Storage:</span>
-                <b>Browser Local Storage (Demo)</b>
+                <b>Supabase · Savrdh Technology</b>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 10px', background: '#f8fafc', borderRadius: '8px' }}>
                 <span style={{ color: '#64748b' }}>Delivery Uptime SLA:</span>

@@ -23,15 +23,16 @@ export const LoginPage: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [notice, setNotice] = useState('');
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setNotice('Live sign-in is not configured yet. The evaluation buttons open a local demo only.');
+    setLoading(true); setNotice('');
+    try { await login(email, password); } catch (error) { setNotice(error instanceof Error ? error.message : 'Sign-in failed.'); } finally { setLoading(false); }
   };
 
   const handleQuickLogin = (demoEmail: string, role: string) => {
     setEmail(demoEmail);
-    setPassword('DemoPass2026!');
-    login(demoEmail, role);
+    setPassword('');
+    setNotice('Enter the password for your existing Savrdh account. Your role is verified by the database.');
   };
 
   return (
@@ -50,7 +51,7 @@ export const LoginPage: React.FC = () => {
 
         <div className="loginPitch">
           <div className="loginPill">
-            <ShieldCheck size={15} /> EngageX Evaluation Workspace
+            <ShieldCheck size={15} /> Secure Enterprise CRM Workspace
           </div>
           <h1>
             Connect. Engage.
@@ -133,7 +134,7 @@ export const LoginPage: React.FC = () => {
             }}
           >
             <small style={{ fontSize: '9px', color: '#64748b', display: 'block', marginBottom: '6px', fontWeight: 800 }}>
-              QUICK SIGN-IN FOR EVALUATION:
+              SELECT ACCOUNT — PASSWORD REQUIRED:
             </small>
             <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
               <button
@@ -204,7 +205,7 @@ export const LoginPage: React.FC = () => {
               <label>Password</label>
               <button
                 type="button"
-                onClick={() => setNotice('Password reset requires the live authentication service. No email has been sent.')}
+                onClick={() => setNotice('Use your existing Savrdh account password, or contact your workspace administrator for account recovery.')}
               >
                 Forgot password?
               </button>
@@ -236,7 +237,7 @@ export const LoginPage: React.FC = () => {
             {notice && <div className="loginNotice">{notice}</div>}
           </form>
 
-          <p className="loginTerms">Evaluation data is stored on this device. Live authentication is pending setup.</p>
+          <p className="loginTerms">Connected to Savrdh Technology. Access is verified by your workspace membership.</p>
 
           <button
             onClick={() => setCurrentView('landing')}

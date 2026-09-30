@@ -71,12 +71,12 @@ export const MessagesView: React.FC = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [activeMessages]);
 
-  const handleSend = (e?: React.FormEvent) => {
+  const handleSend = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     if (!textBody.trim() || !selectedContact) return;
 
     try {
-    sendMessage({
+    await sendMessage({
       contact_id: selectedContact.id,
       channel: activeChannel,
       body: textBody,

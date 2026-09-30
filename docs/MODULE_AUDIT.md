@@ -1,3 +1,7 @@
+# Historical audit
+
+The initial audit below describes the original prototype. For the current database integration and remaining provider requirements, see [SHARED_DATABASE.md](SHARED_DATABASE.md). The user superseded the separate-project choice and authorized the existing Savrdh Technology database.
+
 # EngageX module audit — 30 September 2026
 
 Production Vercel deployment dpl_7apA322uqdwomCnCBRKhZemogojo is READY at commit 0e86488. Its historical repository name engagex.Version-2 redirects to engageX (same repository ID 1397268861).

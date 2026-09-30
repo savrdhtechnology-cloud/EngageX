@@ -139,7 +139,8 @@ export const ContactsView: React.FC = () => {
   };
 
   // Save contact
-  const handleSaveContact = (e: React.FormEvent) => {
+  const handleSaveContact = async (e: React.FormEvent) => {
+    try {
     e.preventDefault();
     if (!form.name.trim()) {
       setError('Contact full name is required');
@@ -160,13 +161,13 @@ export const ContactsView: React.FC = () => {
       .filter(Boolean);
 
     if (editingContact) {
-      updateContact(editingContact.id, {
+      await updateContact(editingContact.id, {
         ...form,
         tags: tagList,
       });
       setNotice(`Updated ${form.name}`);
     } else {
-      addContact({
+      await addContact({
         ...form,
         tags: tagList,
       });
@@ -175,6 +176,7 @@ export const ContactsView: React.FC = () => {
 
     setIsModalOpen(false);
     setError('');
+    } catch (error) { console.error(error); }
   };
 
   // Export to CSV
@@ -267,12 +269,14 @@ export const ContactsView: React.FC = () => {
     reader.readAsBinaryString(file);
   };
 
-  const handleCommitImport = () => {
+  const handleCommitImport = async () => {
+    try {
     if (importPreviewRows.length === 0) return;
-    const res = importContacts(importPreviewRows);
+    const res = await importContacts(importPreviewRows);
     setNotice(`Successfully imported ${res.inserted} contacts (${res.duplicates} duplicates skipped).`);
     setIsImportOpen(false);
     setImportPreviewRows([]);
+    } catch (error) { console.error(error); }
   };
 
   // Toggle selection
@@ -369,9 +373,9 @@ export const ContactsView: React.FC = () => {
           <button onClick={handleExportCSV}>Export Selected</button>
           <button
             className="danger"
-            onClick={() => {
+            onClick={async () => {
               if (confirm(`Are you sure you want to delete ${selectedIds.length} contacts?`)) {
-                bulkDeleteContacts(selectedIds);
+                try { await bulkDeleteContacts(selectedIds); } catch { return; }
                 setSelectedIds([]);
                 setNotice(`Deleted ${selectedIds.length} contacts`);
               }

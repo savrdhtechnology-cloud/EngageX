@@ -343,7 +343,7 @@ export const CommercialShell: React.FC<{
               </span>
             </div>
             <h1>{title}</h1>
-            <p className="pageSub">{'Evaluation workspace · ' + subtitle}</p>
+            <p className="pageSub">{subtitle}</p>
           </div>
 
           <div className="crmHeaderActions" style={{ position: 'relative' }}>

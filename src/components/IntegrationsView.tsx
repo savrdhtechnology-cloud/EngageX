@@ -41,13 +41,15 @@ export const IntegrationsView: React.FC = () => {
     setTesting(false);
   };
 
-  const handleSaveConfig = (e: React.FormEvent) => {
+  const handleSaveConfig = async (e: React.FormEvent) => {
+    try {
     e.preventDefault();
     if (!selectedIntegration) return;
 
-    updateIntegration(selectedIntegration.id, configValues, 'configured');
-    setNotice(`${selectedIntegration.title} non-secret configuration saved locally. Live credentials were not saved; secure backend setup is pending.`);
+    await updateIntegration(selectedIntegration.id, configValues, 'configured');
+    setNotice(`${selectedIntegration.title} Non-secret configuration saved to the database. Live credentials were not saved; secure backend setup is pending.`);
     setSelectedIntegration(null);
+    } catch (error) { console.error(error); }
   };
 
   const handleSimulateWebhook = () => {
@@ -62,7 +64,7 @@ export const IntegrationsView: React.FC = () => {
   return (
     <CommercialShell
       title="Integrations & Gateways"
-      subtitle="Evaluate provider configuration. Do not enter live credentials until secure backend setup is complete."
+      subtitle="Provider configuration is stored in the database. Secure credential setup is pending."
     >
       {notice && (
         <div className="notice" style={{ display: 'flex', justifyContent: 'space-between' }}>

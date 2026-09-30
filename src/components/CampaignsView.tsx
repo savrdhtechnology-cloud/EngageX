@@ -94,12 +94,13 @@ export const CampaignsView: React.FC = () => {
     setBody((prev) => prev + ` {{${variable}}}`);
   };
 
-  const handleCreateCampaign = () => {
+  const handleCreateCampaign = async () => {
+    try {
     if (!name.trim() || !body.trim()) { setNotice('Campaign name and message are required.'); return; }
     if (sendMode === 'schedule' && (!scheduledAt || Date.parse(scheduledAt) <= Date.now())) { setNotice('Choose a future scheduled date and time.'); return; }
     if (sendMode !== 'draft' && audienceCount === 0) { setNotice('No eligible contacts match this audience and consent selection.'); return; }
 
-    addCampaign({
+    await addCampaign({
       name,
       objective: objective || 'Omnichannel communication broadcast',
       channels,
@@ -111,12 +112,9 @@ export const CampaignsView: React.FC = () => {
       target_audience: targetAudience === 'all' ? 'All eligible contacts' : `Tags: #${targetAudience}`,
     });
 
-    setNotice(
-      sendMode === 'now'
-        ? `Campaign "${name}" is running as a local demo. No messages will be delivered.`
-        : `Campaign "${name}" saved.`
-    );
+    setNotice(`Campaign "${name}" saved as a draft. Provider setup is required before launch or scheduling.`);
     setIsWizardOpen(false);
+    } catch (error) { console.error(error); }
   };
 
   return (

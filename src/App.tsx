@@ -4,7 +4,8 @@
  */
 
 import React from 'react';
-import { AppProvider, useApp } from './context/AppContext';
+import { useApp } from './context/AppContext';
+import { LiveAppProvider as AppProvider } from './context/LiveAppProvider';
 import { LandingPage } from './components/LandingPage';
 import { AboutPage } from './components/AboutPage';
 import { ContactPage } from './components/ContactPage';

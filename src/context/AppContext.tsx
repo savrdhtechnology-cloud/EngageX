@@ -26,84 +26,88 @@ import {
   initialNotifications,
 } from '../data/mockData';
 
-interface AppContextType {
+export interface AppContextType {
+  live?: boolean;
+  workspaceSettings?: Record<string, string>;
+  saveWorkspaceSettings?: (settings: Record<string, string>) => Promise<void>;
+  reportError?: (error: unknown) => void | Promise<void>;
   // Navigation
   currentView: 'landing' | 'about' | 'contact' | 'login' | 'app';
-  setCurrentView: (view: 'landing' | 'about' | 'contact' | 'login' | 'app') => void;
+  setCurrentView: (view: 'landing' | 'about' | 'contact' | 'login' | 'app') => void | Promise<void>;
   appTab: string;
-  setAppTab: (tab: string) => void;
+  setAppTab: (tab: string) => void | Promise<void>;
   activeChatContactId: string;
-  setActiveChatContactId: (id: string) => void;
+  setActiveChatContactId: (id: string) => void | Promise<void>;
 
   // Notifications
   notifications: AppNotification[];
   unreadNotificationsCount: number;
-  markNotificationRead: (id: string) => void;
-  markAllNotificationsRead: () => void;
-  deleteNotification: (id: string) => void;
-  addNotification: (data: Omit<AppNotification, 'id' | 'time' | 'read'> & { time?: string }) => void;
+  markNotificationRead: (id: string) => void | Promise<void>;
+  markAllNotificationsRead: () => void | Promise<void>;
+  deleteNotification: (id: string) => void | Promise<void>;
+  addNotification: (data: Omit<AppNotification, 'id' | 'time' | 'read'> & { time?: string }) => void | Promise<void>;
 
   // Session
   userSession: UserSession;
-  login: (email: string, role?: string) => void;
-  logout: () => void;
+  login: (email: string, password?: string) => void | Promise<void>;
+  logout: () => void | Promise<void>;
 
   // Contacts
   contacts: Contact[];
-  addContact: (data: Omit<Contact, 'id' | 'created_at'>) => Contact;
-  updateContact: (id: string, data: Partial<Contact>) => void;
-  deleteContact: (id: string) => void;
-  bulkDeleteContacts: (ids: string[]) => void;
-  importContacts: (items: Omit<Contact, 'id' | 'created_at'>[]) => { inserted: number; duplicates: number };
+  addContact: (data: Omit<Contact, 'id' | 'created_at'>) => Contact | Promise<Contact>;
+  updateContact: (id: string, data: Partial<Contact>) => void | Promise<void>;
+  deleteContact: (id: string) => void | Promise<void>;
+  bulkDeleteContacts: (ids: string[]) => void | Promise<void>;
+  importContacts: (items: Omit<Contact, 'id' | 'created_at'>[]) => { inserted: number; duplicates: number } | Promise<{ inserted: number; duplicates: number }>;
 
   // Campaigns
   campaigns: Campaign[];
-  addCampaign: (data: Omit<Campaign, 'id' | 'created_at' | 'sent_count' | 'delivered_count' | 'read_count' | 'failed_count'>) => Campaign;
-  updateCampaign: (id: string, data: Partial<Campaign>) => void;
-  deleteCampaign: (id: string) => void;
-  queueCampaign: (id: string) => void;
-  simulateCampaignRun: (id: string) => void;
+  addCampaign: (data: Omit<Campaign, 'id' | 'created_at' | 'sent_count' | 'delivered_count' | 'read_count' | 'failed_count'>) => Campaign | Promise<Campaign>;
+  updateCampaign: (id: string, data: Partial<Campaign>) => void | Promise<void>;
+  deleteCampaign: (id: string) => void | Promise<void>;
+  queueCampaign: (id: string) => void | Promise<void>;
+  simulateCampaignRun: (id: string) => void | Promise<void>;
 
   // Messages
   messages: Message[];
-  sendMessage: (payload: { contact_id: string; channel: ChannelType; body: string; subject?: string }) => void;
-  simulateCustomerReply: (contact_id: string, text?: string) => void;
+  sendMessage: (payload: { contact_id: string; channel: ChannelType; body: string; subject?: string }) => void | Promise<void>;
+  simulateCustomerReply: (contact_id: string, text?: string) => void | Promise<void>;
 
   // Templates
   templates: Template[];
-  addTemplate: (data: Omit<Template, 'id' | 'created_at'>) => void;
-  deleteTemplate: (id: string) => void;
+  addTemplate: (data: Omit<Template, 'id' | 'created_at'>) => void | Promise<void>;
+  deleteTemplate: (id: string) => void | Promise<void>;
 
   // Automations
   automations: Automation[];
-  toggleAutomation: (id: string) => void;
-  addAutomation: (data: Omit<Automation, 'id' | 'executions_count'>) => void;
+  toggleAutomation: (id: string) => void | Promise<void>;
+  addAutomation: (data: Omit<Automation, 'id' | 'executions_count'>) => void | Promise<void>;
   testAutomation: (autoId: string, contactId: string) => Promise<string[]>;
 
   // Integrations
   integrations: Integration[];
-  updateIntegration: (id: string, config: Record<string, string>, status?: 'connected' | 'configured' | 'disconnected') => void;
+  updateIntegration: (id: string, config: Record<string, string>, status?: 'connected' | 'configured' | 'disconnected') => void | Promise<void>;
   testIntegration: (provider: string, config: Record<string, string>) => Promise<{ success: boolean; message: string; latency_ms: number }>;
 
   // Team
   team: TeamMember[];
-  inviteTeamMember: (email: string, role: TeamMember['role'], name?: string) => void;
-  removeTeamMember: (id: string) => void;
+  inviteTeamMember: (email: string, role: TeamMember['role'], name?: string) => void | Promise<void>;
+  removeTeamMember: (id: string) => void | Promise<void>;
 
   // Billing
   billing: WorkspaceBilling;
-  addCredits: (amount: number) => void;
-  changePlan: (planCode: string) => void;
+  addCredits: (amount: number) => void | Promise<void>;
+  changePlan: (planCode: string) => void | Promise<void>;
 
   // Audit Logs
   auditLogs: AuditItem[];
-  addAuditLog: (action: string, resource_type: string, details: string, resource_id?: string) => void;
+  addAuditLog: (action: string, resource_type: string, details: string, resource_id?: string) => void | Promise<void>;
 
   // Utilities
-  resetToDefaults: () => void;
+  resetToDefaults: () => void | Promise<void>;
 }
 
-const AppContext = createContext<AppContextType | undefined>(undefined);
+export const AppContext = createContext<AppContextType | undefined>(undefined);
 
 import { campaignAudience, normalizePhone } from '../lib/metrics';
 
