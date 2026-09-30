@@ -23,6 +23,9 @@ import { CommercialShell } from './CommercialShell';
 import { useApp } from '../context/AppContext';
 import { Contact } from '../types';
 
+const WHATSAPP_GROUP_LINK = 'https://chat.whatsapp.com/KdCB01biJWTH6ihxLjFO8O';
+const buildGroupInviteMessage = (name: string) => `Namaste ${name || 'Ji'},\n\nAKBS Poultry Farming Private Limited ki taraf se aapko hamare official WhatsApp group me join hone ka invite bheja ja raha hai.\n\nGroup join karne ke liye neeche diye gaye link par click karein:\n${WHATSAPP_GROUP_LINK}\n\nDhanyavaad.\nAKBS Poultry Farming Private Limited`;
+
 export const ContactsView: React.FC = () => {
   const { contacts, addContact, updateContact, deleteContact, bulkDeleteContacts, importContacts } = useApp();
 
@@ -31,6 +34,26 @@ export const ContactsView: React.FC = () => {
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [notice, setNotice] = useState<string>('');
   const [error, setError] = useState<string>('');
+
+  const openWhatsAppInvite = (contact: Contact) => {
+    const phone = normalizePhone(contact.mobile || '');
+    if (!phone) {
+      setError('This contact does not have a valid mobile number.');
+      return;
+    }
+    const message = encodeURIComponent(buildGroupInviteMessage(contact.name));
+    window.open(`https://wa.me/${phone}?text=${message}`, '_blank', 'noopener,noreferrer');
+    setNotice(`WhatsApp invite opened for ${contact.name}. Press Send in WhatsApp to deliver it.`);
+  };
+
+  const copyGroupInvite = async (contact: Contact) => {
+    try {
+      await navigator.clipboard.writeText(buildGroupInviteMessage(contact.name));
+      setNotice(`Group invite message copied for ${contact.name}.`);
+    } catch {
+      setError('Could not copy the invite message.');
+    }
+  };
 
   // Modals
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -532,7 +555,22 @@ export const ContactsView: React.FC = () => {
                       </span>
                     </td>
                     <td>
-                      <div style={{ display: 'flex', gap: '6px' }}>
+                      <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                        <button
+                          className="tableAction"
+                          onClick={() => openWhatsAppInvite(c)}
+                          title="Open WhatsApp with AKBS group invite prefilled"
+                          style={{ color: '#15803d' }}
+                        >
+                          WhatsApp Invite
+                        </button>
+                        <button
+                          className="tableAction"
+                          onClick={() => void copyGroupInvite(c)}
+                          title="Copy AKBS WhatsApp group invite message"
+                        >
+                          Copy Invite
+                        </button>
                         <button className="tableAction" onClick={() => handleOpenEdit(c)}>
                           Edit
                         </button>
