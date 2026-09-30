@@ -60,6 +60,7 @@ export const CommercialShell: React.FC<{
     deleteNotification,
     setActiveChatContactId,
     activeWorkspace,
+    switchWorkspace,
   } = useApp();
 
   const [showNotifications, setShowNotifications] = useState(false);
@@ -198,8 +199,35 @@ export const CommercialShell: React.FC<{
           </span>
         </div>
 
+        {activeWorkspace?.slug && activeWorkspace.slug !== 'savrdh-engagex' && (
+          <div style={{
+            margin: '10px 8px 12px',
+            padding: '11px 12px',
+            borderRadius: '12px',
+            background: 'rgba(255,255,255,.06)',
+            border: '1px solid rgba(125,211,252,.18)'
+          }}>
+            <small style={{display:'block',fontSize:'8px',letterSpacing:'1.4px',color:'#7dd3fc',fontWeight:900,marginBottom:5}}>
+              CLIENT WORKSPACE
+            </small>
+            <b style={{display:'block',fontSize:'11px',lineHeight:1.35,color:'#f8fafc'}}>
+              {activeWorkspace.name}
+            </b>
+            <button
+              type="button"
+              onClick={() => void switchWorkspace?.('savrdh-engagex')}
+              style={{
+                marginTop:9,width:'100%',border:'1px solid rgba(255,255,255,.14)',background:'rgba(255,255,255,.05)',
+                color:'#bae6fd',borderRadius:8,padding:'6px 8px',fontSize:9,fontWeight:800,cursor:'pointer'
+              }}
+            >
+              ← Back to Clients
+            </button>
+          </div>
+        )}
+
         <nav>
-          {menuItems.map((item) => {
+          {(activeWorkspace?.slug && activeWorkspace.slug !== 'savrdh-engagex' ? menuItems.filter(item => item.id !== 'clients') : menuItems).map((item) => {
             const Icon = item.icon;
             const isActive = appTab === item.id;
             return (
@@ -331,7 +359,7 @@ export const CommercialShell: React.FC<{
         <header>
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
-              <small>ENGAGEX COMMERCIAL CRM</small>
+              <small>{activeWorkspace?.slug && activeWorkspace.slug !== 'savrdh-engagex' ? `${activeWorkspace.name.toUpperCase()} · CLIENT CRM` : 'ENGAGEX COMMERCIAL CRM'}</small>
               <span
                 style={{
                   fontSize: '8px',
