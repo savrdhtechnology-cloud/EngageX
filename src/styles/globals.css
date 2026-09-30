@@ -20,3 +20,91 @@
 .brandServiceDock div:last-child{border-right:0}.brandServiceDock svg{color:#c9f7ff}
 @media(max-width:980px){.savrdhBrandPanel{min-height:420px}.savrdhScript{font-size:64px}.brandServiceDock{left:2%;right:2%;border-radius:28px}}
 @media(max-width:640px){.savrdhBrandPanel{min-height:390px;padding:38px 22px 125px}.savrdhScript{font-size:48px}.savrdhScript span{margin-left:28px}.brandUnderline{width:205px;margin-left:80px}.brandGroup{margin-left:72px;font-size:9px;letter-spacing:2.5px}.buildStack{right:18px;top:115px;font-size:9px;letter-spacing:3px}.brandServiceDock{grid-template-columns:repeat(2,1fr);row-gap:16px;border-radius:24px;padding:16px}.brandServiceDock div:nth-child(2){border-right:0}.brandServiceDock div{font-size:10px}}
+
+/* Enhanced motion for Savrdh Technology branding */
+.savrdhScript{
+  animation:savrdhSignature 5.8s ease-in-out infinite;
+  transform-origin:center;
+}
+.savrdhScript span{
+  display:inline-block;
+  animation:technologyGlow 4.8s ease-in-out infinite;
+}
+.brandUnderline{
+  overflow:hidden;
+  animation:underlineDrift 4.6s ease-in-out infinite;
+}
+.brandUnderline:after{
+  content:"";
+  position:absolute;
+  inset:0;
+  width:42%;
+  transform:translateX(-160%);
+  background:linear-gradient(90deg,transparent,rgba(255,255,255,.95),transparent);
+  animation:underlineShine 3.2s ease-in-out infinite;
+}
+.brandGroup{
+  animation:groupReveal 5.2s ease-in-out infinite;
+}
+.brandGroup:after{
+  content:"";
+  display:block;
+  width:0;
+  height:2px;
+  margin:8px auto 0;
+  background:linear-gradient(90deg,#0ea5e9,#06b6d4);
+  border-radius:999px;
+  animation:groupLine 5.2s ease-in-out infinite;
+}
+.buildStack span{
+  animation:buildPulse 3.9s ease-in-out infinite;
+}
+.buildStack span:nth-child(2){animation-delay:.25s}
+.buildStack span:nth-child(3){animation-delay:.5s}
+.brandServiceDock{
+  animation:dockFloat 5.5s ease-in-out infinite;
+}
+.brandServiceDock div{
+  transition:transform .3s ease,background .3s ease;
+}
+.brandServiceDock div:hover{
+  transform:translateY(-5px);
+}
+@keyframes savrdhSignature{
+  0%,100%{transform:rotate(-5deg) translateY(0) scale(1);filter:drop-shadow(0 0 0 rgba(6,182,212,0))}
+  45%{transform:rotate(-4deg) translateY(-4px) scale(1.025);filter:drop-shadow(0 8px 16px rgba(6,182,212,.12))}
+  55%{transform:rotate(-5deg) translateY(-2px) scale(1.015)}
+}
+@keyframes technologyGlow{
+  0%,100%{filter:drop-shadow(0 0 0 rgba(6,182,212,0));opacity:.96}
+  50%{filter:drop-shadow(0 7px 13px rgba(6,182,212,.22));opacity:1}
+}
+@keyframes underlineDrift{
+  0%,100%{transform:rotate(-7deg) scaleX(.96)}
+  50%{transform:rotate(-6deg) scaleX(1.04)}
+}
+@keyframes underlineShine{
+  0%,12%{transform:translateX(-160%);opacity:0}
+  30%,55%{opacity:1}
+  75%,100%{transform:translateX(300%);opacity:0}
+}
+@keyframes groupReveal{
+  0%,100%{letter-spacing:4px;opacity:.72;transform:translateY(0)}
+  45%{letter-spacing:5px;opacity:1;transform:translateY(-2px)}
+  60%{letter-spacing:4.6px;opacity:.94}
+}
+@keyframes groupLine{
+  0%,100%{width:0;opacity:0}
+  35%,70%{width:130px;opacity:1}
+}
+@keyframes buildPulse{
+  0%,100%{opacity:.72;transform:translateX(0)}
+  50%{opacity:1;transform:translateX(4px)}
+}
+@keyframes dockFloat{
+  0%,100%{transform:translateY(0)}
+  50%{transform:translateY(-6px)}
+}
+@media(prefers-reduced-motion:reduce){
+  .savrdhScript,.savrdhScript span,.brandUnderline,.brandUnderline:after,.brandGroup,.brandGroup:after,.buildStack span,.brandServiceDock{animation:none!important}
+}
