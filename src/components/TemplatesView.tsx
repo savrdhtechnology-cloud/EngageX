@@ -80,22 +80,30 @@ export const TemplatesView: React.FC = () => {
       return;
     }
 
-    await addTemplate({
+    const payload = {
       name: name.toLowerCase().replace(/\s+/g, '_'),
       channel,
       category,
-      status: 'draft',
+      status: 'draft' as const,
       dlt_template_id: channel === 'sms' ? dltTemplateId || undefined : undefined,
       subject: channel === 'email' ? subject : undefined,
       body,
       variables: vars,
-    });
+    };
 
-    setNotice(`Template "${name}" saved as a draft. Provider approval is pending.`);
+    if (editingTemplate) {
+      await updateTemplate(editingTemplate.id, payload);
+      setSelectedPreview({ ...editingTemplate, ...payload });
+      setNotice(`Template "${name}" updated.`);
+    } else {
+      await addTemplate(payload);
+      setNotice(`Template "${name}" saved as a draft.`);
+    }
     setIsModalOpen(false);
     setName('');
     setBody('');
     setSubject('');
+    setEditingTemplate(null);
     setError('');
     } catch (error) { console.error(error); }
   };
