@@ -57,3 +57,42 @@
     gap:12px;
   }
 }
+
+
+/* Header action polish: keep Public Website + admin identity clean at all desktop widths */
+.crmHeaderActions{
+  display:flex;
+  align-items:center;
+  justify-content:flex-end;
+  gap:10px;
+  flex-wrap:nowrap;
+  min-width:max-content;
+}
+.crmHeaderActions>button{
+  width:auto;
+  min-width:36px;
+  flex:0 0 auto;
+  white-space:nowrap;
+}
+.crmHeaderActions>span{
+  min-width:0;
+  max-width:190px;
+  white-space:nowrap;
+}
+.crmHeaderActions>span b,
+.crmHeaderActions>span small{
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+@media(max-width:1100px){
+  .crmHeaderActions>span{display:none}
+}
+@media(max-width:760px){
+  .crmMain header{align-items:flex-start}
+  .crmHeaderActions{gap:7px}
+  .crmHeaderActions>button:first-child{
+    padding:6px 9px !important;
+    font-size:10px !important;
+  }
+}
