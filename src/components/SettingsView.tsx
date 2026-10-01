@@ -138,7 +138,7 @@ export const SettingsView: React.FC = () => {
                   value={whatsappInviteMessage}
                   onChange={(e) => setWhatsappInviteMessage(e.target.value)}
                 />
-                <small className="fieldHint">Supported placeholders: {{first_name}} and {{group_link}}. Keep the group link only once for a cleaner WhatsApp preview.</small>
+                <small className="fieldHint">Supported placeholders: {"{{first_name}}"} and {"{{group_link}}"}. Keep the group link only once for a cleaner WhatsApp preview.</small>
               </div>
 
               <div className="field full">
