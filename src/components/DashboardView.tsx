@@ -68,13 +68,15 @@ export const DashboardView: React.FC = () => {
       if (workspaceError) throw workspaceError;
 
       const rows = await Promise.all((workspaces || []).map(async (client: any) => {
-        const [contactResult, campaignResult, messageResult, lastMessageResult] = await Promise.all([
+        const [contactResult, campaignResult, messageResult, lastMessageResult, billingResult, integrationResult] = await Promise.all([
           supabase.from('engagex_contacts').select('id', { count: 'exact', head: true }).eq('workspace_id', client.id),
           supabase.from('engagex_campaigns').select('id', { count: 'exact', head: true }).eq('workspace_id', client.id),
           supabase.from('engagex_messages').select('id', { count: 'exact', head: true }).eq('workspace_id', client.id),
           supabase.from('engagex_messages').select('created_at').eq('workspace_id', client.id).order('created_at', { ascending: false }).limit(1).maybeSingle(),
+          supabase.from('engagex_billing').select('plan_name,status,monthly_price,message_credits,contact_limit,monthly_message_limit,whatsapp_usage,sms_usage,email_usage').eq('workspace_id', client.id).maybeSingle(),
+          supabase.from('engagex_integrations').select('provider,channel,status,title').eq('workspace_id', client.id),
         ]);
-        const firstError = contactResult.error || campaignResult.error || messageResult.error || lastMessageResult.error;
+        const firstError = contactResult.error || campaignResult.error || messageResult.error || lastMessageResult.error || billingResult.error || integrationResult.error;
         if (firstError) throw firstError;
         return {
           ...client,
@@ -82,6 +84,13 @@ export const DashboardView: React.FC = () => {
           campaigns: campaignResult.count || 0,
           messages: messageResult.count || 0,
           lastActivity: lastMessageResult.data?.created_at || client.created_at,
+          billing: billingResult.data || null,
+          services: (integrationResult.data || []).map((i: any) => ({
+            provider: i.provider,
+            channel: i.channel,
+            status: i.status,
+            title: i.title,
+          })),
         };
       }));
       setClientPortfolio(rows);
@@ -102,7 +111,9 @@ export const DashboardView: React.FC = () => {
     contacts: acc.contacts + client.contacts,
     campaigns: acc.campaigns + client.campaigns,
     messages: acc.messages + client.messages,
-  }), { clients: 0, contacts: 0, campaigns: 0, messages: 0 }), [clientPortfolio]);
+    monthlyRevenue: acc.monthlyRevenue + Number(client.billing?.monthly_price || 0),
+    activeSubscriptions: acc.activeSubscriptions + (client.billing?.status === 'active' ? 1 : 0),
+  }), { clients: 0, contacts: 0, campaigns: 0, messages: 0, monthlyRevenue: 0, activeSubscriptions: 0 }), [clientPortfolio]);
 
   // Metrics computation
   const stats = useMemo(() => {
@@ -229,16 +240,18 @@ export const DashboardView: React.FC = () => {
 
           {clientPortfolioError && <div className="dashboardError">{clientPortfolioError}</div>}
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,minmax(0,1fr))', gap: 10, marginBottom: 10 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6,minmax(0,1fr))', gap: 10, marginBottom: 10 }}>
             {[
               ['CLIENT COMPANIES', portfolioTotals.clients, 'Active isolated workspaces'],
+              ['MONTHLY REVENUE', portfolioTotals.monthlyRevenue, 'Recurring subscription revenue', true],
+              ['ACTIVE SUBSCRIPTIONS', portfolioTotals.activeSubscriptions, 'Clients currently active'],
               ['CLIENT CONTACTS', portfolioTotals.contacts, 'Total contacts across clients'],
               ['CLIENT CAMPAIGNS', portfolioTotals.campaigns, 'Campaigns across clients'],
               ['CLIENT MESSAGES', portfolioTotals.messages, 'Message events across clients'],
-            ].map(([label, value, note]) => (
+            ].map(([label, value, note, isMoney]) => (
               <article key={String(label)} style={{ background: '#fff', border: '1px solid #dfe9ed', borderRadius: 12, padding: '13px 14px' }}>
                 <span style={{ display: 'block', fontSize: 8, color: '#78909c', fontWeight: 900, letterSpacing: .5 }}>{label}</span>
-                <strong style={{ display: 'block', margin: '6px 0 3px', fontSize: 21, color: '#0f172a' }}>{Number(value).toLocaleString()}</strong>
+                <strong style={{ display: 'block', margin: '6px 0 3px', fontSize: 21, color: '#0f172a' }}>{isMoney ? '₹' + Number(value).toLocaleString('en-IN') : Number(value).toLocaleString()}</strong>
                 <small style={{ fontSize: 8, color: '#94a3b8' }}>{note}</small>
               </article>
             ))}
@@ -259,6 +272,9 @@ export const DashboardView: React.FC = () => {
                   <thead>
                     <tr>
                       <th>Client Company</th>
+                      <th>Subscription</th>
+                      <th>Monthly Revenue</th>
+                      <th>Services</th>
                       <th>Contacts</th>
                       <th>Campaigns</th>
                       <th>Messages</th>
@@ -272,6 +288,31 @@ export const DashboardView: React.FC = () => {
                         <td>
                           <b style={{ fontSize: 10 }}>{client.name}</b>
                           <small style={{ display: 'block', marginTop: 2, color: '#94a3b8', fontSize: 8 }}>{client.slug}</small>
+                        </td>
+                        <td>
+                          <span className="dashBadge" style={{ background: client.billing?.status === 'active' ? '#ecfdf5' : '#f8fafc', color: client.billing?.status === 'active' ? '#047857' : '#64748b' }}>
+                            {client.billing?.status || 'unconfigured'}
+                          </span>
+                          <small style={{ display: 'block', marginTop: 3, color: '#94a3b8', fontSize: 8 }}>{client.billing?.plan_name || 'No plan'}</small>
+                        </td>
+                        <td><b>₹{Number(client.billing?.monthly_price || 0).toLocaleString('en-IN')}</b></td>
+                        <td>
+                          <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', maxWidth: 220 }}>
+                            {(client.services || []).length === 0 ? (
+                              <span style={{ fontSize: 8, color: '#94a3b8' }}>No services configured</span>
+                            ) : (client.services || []).map((service: any) => (
+                              <span key={service.provider} style={{
+                                fontSize: 8,
+                                padding: '3px 6px',
+                                borderRadius: 999,
+                                background: service.status === 'connected' || service.status === 'configured' ? '#ecfdf5' : '#f1f5f9',
+                                color: service.status === 'connected' || service.status === 'configured' ? '#047857' : '#64748b',
+                                fontWeight: 800
+                              }}>
+                                {service.channel?.toUpperCase() || service.title} · {service.status}
+                              </span>
+                            ))}
+                          </div>
                         </td>
                         <td>{client.contacts.toLocaleString()}</td>
                         <td>{client.campaigns.toLocaleString()}</td>
