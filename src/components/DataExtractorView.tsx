@@ -98,7 +98,7 @@ export const DataExtractorView: React.FC = () => {
       if (data?.error) throw new Error(data.error);
       setLiveResults(data?.results || []);
       if (!(data?.results || []).length) setNotice('No live Google web results found for this search.');
-      else setNotice((data?.fallback_used ? 'Fallback public web search used. ' : 'Google public web search used. ') + 'Select the businesses you want to save.');
+      else setNotice(data?.engine === 'google_places' ? 'Google Maps/Places results loaded. Select the businesses you want to save.' : 'Search results loaded. Select the businesses you want to save.');
     } catch (e: any) {
       setNotice(e?.message || 'Live search failed.');
     } finally {
@@ -116,7 +116,7 @@ export const DataExtractorView: React.FC = () => {
     setNotice('');
     const payload = selected.map((r: any) => ({
       workspace_id: activeWorkspace.id,
-      source: r.source === 'google_web' ? 'google_maps' : 'web_search',
+      source: r.source === 'google_places' || r.source === 'google_web' ? 'google_maps' : 'web_search',
       business_name: r.business_name,
       category: r.category || category.trim() || null,
       location: location.trim() || null,
@@ -232,11 +232,11 @@ export const DataExtractorView: React.FC = () => {
           <div>
             <small style={{fontSize:8,color:'#64748b',fontWeight:900}}>SOURCE CONNECTORS</small>
             <h3 style={{margin:'4px 0 4px',fontSize:15}}>Prospecting Sources</h3>
-            <p style={{margin:0,fontSize:9,color:'#64748b'}}>Live Google public web search is enabled. EngageX does not bypass site restrictions or CAPTCHAs.</p>
+            <p style={{margin:0,fontSize:9,color:'#64748b'}}>Google Places API powers live business discovery with structured business details.</p>
           </div>
           <div style={{display:'flex',gap:8,flexWrap:'wrap'}}>
             {[
-              ['Google Search','Live public web search'],
+              ['Google Maps','Google Places API connected'],
               ['IndiaMART','API / export connector ready'],
               ['Justdial','Licensed feed / export ready']
             ].map(([name,status]) => (
@@ -275,8 +275,8 @@ export const DataExtractorView: React.FC = () => {
         <section style={{background:'#fff',border:'1px solid #dfe9ed',borderRadius:14,overflow:'hidden',marginBottom:14}}>
           <div style={{padding:'12px 14px',borderBottom:'1px solid #edf2f4',display:'flex',justifyContent:'space-between',alignItems:'center',gap:10,flexWrap:'wrap'}}>
             <div>
-              <b style={{fontSize:11}}>Live Web Search Results</b>
-              <small style={{display:'block',fontSize:8,color:'#94a3b8',marginTop:2}}>{liveResults.length} public web results found · Google is preferred, fallback search is used when Google blocks server requests</small>
+              <b style={{fontSize:11}}>Live Google Maps Results</b>
+              <small style={{display:'block',fontSize:8,color:'#94a3b8',marginTop:2}}>{liveResults.length} Google Places businesses found · select the records you want to save into EngageX Lead Intelligence</small>
             </div>
             <button onClick={saveLiveProspects} className="primaryBtn small">Save Selected</button>
           </div>
