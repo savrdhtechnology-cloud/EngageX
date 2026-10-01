@@ -97,7 +97,8 @@ export const ContactsView: React.FC = () => {
 
   // Form state
   const groupInviteLink = workspaceSettings?.whatsappGroupLink || DEFAULT_WHATSAPP_GROUP_LINK;
-  const groupInviteTemplate = workspaceSettings?.whatsappInviteMessage || DEFAULT_INVITE_MESSAGE;
+  const defaultTemplate = templates.find((t) => t.id === workspaceSettings?.defaultWhatsAppTemplateId && t.channel === 'whatsapp');
+  const groupInviteTemplate = defaultTemplate?.body || workspaceSettings?.whatsappInviteMessage || DEFAULT_INVITE_MESSAGE;
   const buildGroupInviteMessage = (name: string) => {
     const firstName = (name || 'Ji').trim().split(/\s+/)[0] || 'Ji';
     return groupInviteTemplate
