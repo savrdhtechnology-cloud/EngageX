@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Building2, Check, Download, MapPin, MessageCircle, Plus, Search, UserPlus } from 'lucide-react';
+import { Building2, Check, Download, MapPin, MessageCircle, Plus, Search, Trash2, UserPlus } from 'lucide-react';
 import { CommercialShell } from './CommercialShell';
 import * as XLSX from 'xlsx';
 import { supabase } from '../lib/supabase';
@@ -282,7 +282,7 @@ export const DataExtractorView: React.FC = () => {
         rating:r.rating, source_url:r.source_url||null, business_type:r.business_type||null,
         match_score:r.match_score??null, lead_score:r.lead_score??null,
         recommended_product:r.recommended_product||null, source_domain:r.source_domain||null,
-        enrichment_status:r.enrichment_status||'basic', status:'new', outreach_eligibility:'review_required'
+        enrichment_status:r.enrichment_status||'basic', search_history_id:lastHistoryId, status:'new', outreach_eligibility:'review_required'
       }));
       const {data:existing,error:existingError}=await supabase.from('engagex_prospects').select('source,business_name,phone,website').eq('workspace_id',activeWorkspace.id);
       if(existingError) throw new Error(existingError.message);
@@ -297,6 +297,32 @@ export const DataExtractorView: React.FC = () => {
       }
       const plan=planProspectImport(payload,contacts);
       const result=await importContacts(plan.items);
+
+      if (lastHistoryId) {
+        const phones = payload.map((p:any)=>normPhone(p.phone)).filter(Boolean);
+        const emails = payload.map((p:any)=>normEmail(p.email)).filter(Boolean);
+        const { data: contactRows } = await supabase
+          .from('engagex_contacts')
+          .select('id,mobile,email,tags')
+          .eq('workspace_id',activeWorkspace.id);
+
+        const linkedIds = (contactRows || [])
+          .filter((x:any)=>Array.isArray(x.tags) && x.tags.includes('lead-intelligence'))
+          .filter((x:any)=>{
+            const p=normPhone(x.mobile), e=normEmail(x.email);
+            return (p && phones.includes(p)) || (e && emails.includes(e));
+          })
+          .map((x:any)=>x.id);
+
+        if (linkedIds.length) {
+          await supabase
+            .from('engagex_contacts')
+            .update({ source_search_history_id:lastHistoryId })
+            .eq('workspace_id',activeWorkspace.id)
+            .in('id',linkedIds);
+        }
+      }
+
       setAddedCrmKeys(prev=>new Set([...prev,...payload.map(crmKeyFor).filter(Boolean)]));
       const message=`${result.inserted} contacts added · ${plan.duplicates+result.duplicates} duplicates skipped · ${plan.missing} without phone/email · ${saved} new prospect records saved.`;
       setSelectedLive({});
@@ -394,6 +420,59 @@ export const DataExtractorView: React.FC = () => {
   const openGoogleMap = () => {
     const q = [category || query || 'businesses', area, location].filter(Boolean).join(' ');
     window.open('https://www.google.com/maps/search/' + encodeURIComponent(q), '_blank', 'noopener,noreferrer');
+  };
+
+
+  const removeSearchHistoryBatch = async (h: SearchHistory) => {
+    if (!activeWorkspace?.id) return;
+    if (!window.confirm('Remove this search batch from Search History, saved prospects, and Lead Intelligence contacts?')) return;
+
+    setNotice('');
+    const { data: linkedContacts, error: readContactsError } = await supabase
+      .from('engagex_contacts')
+      .select('id')
+      .eq('workspace_id', activeWorkspace.id)
+      .eq('source_search_history_id', h.id);
+    if (readContactsError) { setNotice(readContactsError.message); return; }
+
+    const { data: linkedProspects, error: readProspectsError } = await supabase
+      .from('engagex_prospects')
+      .select('id')
+      .eq('workspace_id', activeWorkspace.id)
+      .eq('search_history_id', h.id);
+    if (readProspectsError) { setNotice(readProspectsError.message); return; }
+
+    const contactIds = (linkedContacts || []).map((x:any)=>x.id);
+    const prospectIds = (linkedProspects || []).map((x:any)=>x.id);
+
+    if (contactIds.length) {
+      const { error } = await supabase
+        .from('engagex_contacts')
+        .delete()
+        .eq('workspace_id', activeWorkspace.id)
+        .in('id', contactIds);
+      if (error) { setNotice(error.message); return; }
+    }
+
+    if (prospectIds.length) {
+      const { error } = await supabase
+        .from('engagex_prospects')
+        .delete()
+        .eq('workspace_id', activeWorkspace.id)
+        .in('id', prospectIds);
+      if (error) { setNotice(error.message); return; }
+    }
+
+    const { error: historyError } = await supabase
+      .from('engagex_lead_search_history')
+      .delete()
+      .eq('workspace_id', activeWorkspace.id)
+      .eq('id', h.id);
+    if (historyError) { setNotice(historyError.message); return; }
+
+    setHistory(prev=>prev.filter(x=>x.id!==h.id));
+    setRows(prev=>prev.filter(x=>!prospectIds.includes(x.id)));
+    setNotice('Search batch removed: ' + prospectIds.length + ' prospect(s) and ' + contactIds.length + ' Lead Intelligence contact(s).');
   };
 
   const kpis = useMemo(() => ({
@@ -670,11 +749,12 @@ export const DataExtractorView: React.FC = () => {
                 <th>Source</th>
                 <th>Results</th>
                 <th>Saved</th>
+                <th>Action</th>
               </tr>
             </thead>
             <tbody>
               {history.length===0 ? (
-                <tr><td colSpan={7}>No search history yet. Run a Google Maps search above.</td></tr>
+                <tr><td colSpan={8}>No search history yet. Run a Google Maps search above.</td></tr>
               ) : history.map(h=>(
                 <tr key={h.id}>
                   <td>{new Date(h.created_at).toLocaleString('en-IN')}</td>
@@ -684,6 +764,14 @@ export const DataExtractorView: React.FC = () => {
                   <td>Google Maps</td>
                   <td><span className="dashBadge">{h.results_count}</span></td>
                   <td><span className="dashBadge" style={{background:h.saved_count ? '#ecfdf5':'#f8fafc',color:h.saved_count ? '#047857':'#64748b'}}>{h.saved_count}</span></td>
+                  <td>
+                    <button
+                      onClick={()=>void removeSearchHistoryBatch(h)}
+                      style={{display:'inline-flex',alignItems:'center',gap:5,padding:'6px 9px',border:'1px solid #fecaca',borderRadius:8,background:'#fff',color:'#b91c1c',fontSize:9,fontWeight:900,cursor:'pointer'}}
+                    >
+                      <Trash2 size={12}/> Remove
+                    </button>
+                  </td>
                 </tr>
               ))}
             </tbody>
