@@ -573,9 +573,28 @@ export const ContactsView: React.FC = () => {
       </div>
 
       {/* Toolbar */}
-      <div className="commercialToolbar">
-        <div className="leftActions" style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
-          <div style={{ position: 'relative', width: '280px' }}>
+      <div
+        className="commercialToolbar"
+        style={{
+          display:'grid',
+          gridTemplateColumns:'minmax(0,1fr) auto',
+          gap:12,
+          alignItems:'center',
+          width:'100%'
+        }}
+      >
+        <div
+          className="leftActions"
+          style={{
+            display:'grid',
+            gridTemplateColumns:'minmax(260px,1fr) minmax(180px,260px)',
+            gap:10,
+            alignItems:'center',
+            minWidth:0,
+            width:'100%'
+          }}
+        >
+          <div style={{ position:'relative', minWidth:0, width:'100%' }}>
             <Search
               size={14}
               style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }}
@@ -585,7 +604,7 @@ export const ContactsView: React.FC = () => {
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search name, phone, email, company..."
-              style={{ paddingLeft: '32px' }}
+              style={{ paddingLeft:'34px', width:'100%', minWidth:0, boxSizing:'border-box' }}
             />
           </div>
 
@@ -593,12 +612,15 @@ export const ContactsView: React.FC = () => {
             value={selectedTag}
             onChange={(e) => setSelectedTag(e.target.value)}
             style={{
-              padding: '8px 12px',
-              borderRadius: '10px',
-              border: '1px solid #dce7ec',
-              fontSize: '11px',
-              background: '#ffffff',
-              color: '#334155',
+              width:'100%',
+              minWidth:0,
+              padding:'10px 12px',
+              borderRadius:'10px',
+              border:'1px solid #dce7ec',
+              fontSize:'11px',
+              background:'#ffffff',
+              color:'#334155',
+              boxSizing:'border-box'
             }}
           >
             <option value="all">All Tags ({allTags.length})</option>
@@ -610,7 +632,7 @@ export const ContactsView: React.FC = () => {
           </select>
         </div>
 
-        <div className="rightActions" style={{ display: 'flex', gap: '8px', flexWrap:'wrap' }}>
+        <div className="rightActions" style={{ display:'flex', gap:8, flexWrap:'wrap', justifyContent:'flex-end', alignItems:'center' }}>
           <label className="cbtn secondary fileBtn" style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
             <Upload size={14} /> Import Excel / CSV
             <input type="file" accept=".csv,.xlsx,.xls" onChange={handleFileChange} />
@@ -654,13 +676,37 @@ export const ContactsView: React.FC = () => {
         </div>
       )}
 
+      <style>{`
+        @media (max-width: 1180px) {
+          .commercialToolbar { grid-template-columns: 1fr !important; }
+          .commercialToolbar .leftActions { grid-template-columns: 1fr !important; }
+          .commercialToolbar .rightActions { justify-content:flex-start !important; }
+          .contactSelectionTools {
+            grid-template-columns: repeat(2, minmax(0,1fr)) !important;
+          }
+        }
+        @media (max-width: 720px) {
+          .contactSelectionTools { grid-template-columns: 1fr !important; }
+        }
+      `}</style>
+
       {/* Bulk Action Bar */}
-      {directoryMode === 'contacts' && <div className="contactSelectionTools">
+      {directoryMode === 'contacts' && <div
+        className="contactSelectionTools"
+        style={{
+          display:'grid',
+          gridTemplateColumns:'auto minmax(150px,.7fr) repeat(3,minmax(180px,1fr)) auto',
+          gap:10,
+          alignItems:'center',
+          width:'100%',
+          marginBottom:12
+        }}
+      >
         <button className="cbtn secondary" disabled={!filteredContacts.length} onClick={()=>handleToggleSelectAll(!filteredContacts.every(c=>selectedIds.includes(c.id)))}>{filteredContacts.length>0&&filteredContacts.every(c=>selectedIds.includes(c.id))?'Deselect All':'Select All'}</button>
-        <span>{filteredContacts.length} contacts in this view</span>
-        <select className="searchField" aria-label="Filter contact city" value={contactCity} onChange={e=>setContactCity(e.target.value)}><option value="all">All Cities / Areas</option>{Array.from(new Set(directoryRows.map(row=>row.city).filter(Boolean))).sort().map(city=><option key={city} value={city}>{city}</option>)}</select>
-        <select className="searchField" aria-label="Filter contact industry" value={contactIndustry} onChange={e=>setContactIndustry(e.target.value)}><option value="all">All Industries</option>{Array.from(new Set(directoryRows.map(row=>row.industry).filter(Boolean))).sort().map(industry=><option key={industry} value={industry}>{industry}</option>)}</select>
-        <select className="searchField" aria-label="Filter contact channel" value={contactChannel} onChange={e=>setContactChannel(e.target.value)}><option value="all">All Channels</option><option value="whatsapp">WhatsApp opt-in</option><option value="email">Email opt-in</option><option value="sms">SMS opt-in</option></select>
+        <span style={{fontSize:11,color:'#64748b',whiteSpace:'nowrap'}}>{filteredContacts.length} contacts in this view</span>
+        <select className="searchField" style={{width:'100%',minWidth:0}} aria-label="Filter contact city" value={contactCity} onChange={e=>setContactCity(e.target.value)}><option value="all">All Cities / Areas</option>{Array.from(new Set(directoryRows.map(row=>row.city).filter(Boolean))).sort().map(city=><option key={city} value={city}>{city}</option>)}</select>
+        <select className="searchField" style={{width:'100%',minWidth:0}} aria-label="Filter contact industry" value={contactIndustry} onChange={e=>setContactIndustry(e.target.value)}><option value="all">All Industries</option>{Array.from(new Set(directoryRows.map(row=>row.industry).filter(Boolean))).sort().map(industry=><option key={industry} value={industry}>{industry}</option>)}</select>
+        <select className="searchField" style={{width:'100%',minWidth:0}} aria-label="Filter contact channel" value={contactChannel} onChange={e=>setContactChannel(e.target.value)}><option value="all">All Channels</option><option value="whatsapp">WhatsApp opt-in</option><option value="email">Email opt-in</option><option value="sms">SMS opt-in</option></select>
         <button className="cbtn secondary" onClick={async()=>{try{await refreshContacts?.();setNotice('Contacts refreshed.');}catch(e){setError((e as Error).message);}}}><RefreshCw size={14}/>Refresh</button>
       </div>}
       {directoryMode === 'contacts' && selectedIds.length > 0 && (
