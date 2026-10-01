@@ -168,6 +168,7 @@ export const TemplatesView: React.FC = () => {
         <button
           className="cbtn primary"
           onClick={() => {
+            setEditingTemplate(null);
             setName('');
             setBody('');
             setSubject('');
@@ -256,6 +257,15 @@ export const TemplatesView: React.FC = () => {
                           }}
                         >
                           Preview
+                        </button>
+                        <button
+                          className="tableAction"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            openEditor(t);
+                          }}
+                        >
+                          Customize
                         </button>
                         <button
                           className="tableAction dangerText"
@@ -405,8 +415,8 @@ export const TemplatesView: React.FC = () => {
           <div className="modalCard" style={{ maxWidth: '640px' }}>
             <div className="modalHead">
               <div>
-                <small>TEMPLATE BUILDER</small>
-                <h3>Create Reusable Communication Template</h3>
+                <small>{editingTemplate ? 'TEMPLATE EDITOR' : 'TEMPLATE BUILDER'}</small>
+                <h3>{editingTemplate ? 'Customize Communication Template' : 'Create Reusable Communication Template'}</h3>
               </div>
               <button onClick={() => setIsModalOpen(false)}>×</button>
             </div>
@@ -493,7 +503,7 @@ export const TemplatesView: React.FC = () => {
                   Cancel
                 </button>
                 <button type="submit" className="cbtn primary">
-                  Save & Validate Template
+                  {editingTemplate ? 'Save Changes' : 'Save & Validate Template'}
                 </button>
               </div>
             </form>
