@@ -4,6 +4,19 @@ import { CommercialShell } from './CommercialShell';
 import { supabase } from '../lib/supabase';
 import { useApp } from '../context/AppContext';
 
+type SearchHistory = {
+  id: string;
+  workspace_id: string;
+  search_term: string | null;
+  category: string | null;
+  area: string | null;
+  city: string | null;
+  source: string;
+  results_count: number;
+  saved_count: number;
+  created_at: string;
+};
+
 type Prospect = {
   id: string;
   workspace_id: string;
@@ -41,6 +54,8 @@ const sourceLabel: Record<Prospect['source'], string> = {
 export const DataExtractorView: React.FC = () => {
   const { activeWorkspace, setAppTab } = useApp();
   const [rows, setRows] = useState<Prospect[]>([]);
+  const [history, setHistory] = useState<SearchHistory[]>([]);
+  const [lastHistoryId, setLastHistoryId] = useState<string | null>(null);
   const [query, setQuery] = useState('');
   const [source, setSource] = useState<'all' | Prospect['source']>('all');
   const [category, setCategory] = useState('');
@@ -80,7 +95,19 @@ export const DataExtractorView: React.FC = () => {
     setLoading(false);
   };
 
-  useEffect(() => { void load(); }, [activeWorkspace?.id]);
+  const loadHistory = async () => {
+    if (!activeWorkspace?.id) return;
+    const { data, error } = await supabase
+      .from('engagex_lead_search_history')
+      .select('*')
+      .eq('workspace_id', activeWorkspace.id)
+      .order('created_at', { ascending: false })
+      .limit(100);
+    if (error) setNotice(error.message);
+    setHistory((data || []) as SearchHistory[]);
+  };
+
+  useEffect(() => { void load(); void loadHistory(); }, [activeWorkspace?.id]);
 
   const runLiveSearch = async () => {
     if (!category.trim() && !query.trim() && !location.trim() && !area.trim()) {
@@ -104,9 +131,30 @@ export const DataExtractorView: React.FC = () => {
       });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
-      setLiveResults(data?.results || []);
+      const results = data?.results || [];
+      setLiveResults(results);
       setNextPageToken(data?.nextPageToken || null);
-      if (!(data?.results || []).length) setNotice('No Google Maps businesses found for this area/search.');
+
+      const historyInsert = await supabase
+        .from('engagex_lead_search_history')
+        .insert({
+          workspace_id: activeWorkspace?.id,
+          search_term: query.trim() || null,
+          category: category.trim() || null,
+          area: area.trim() || null,
+          city: location.trim() || null,
+          source: 'google_maps',
+          results_count: results.length,
+          saved_count: 0
+        })
+        .select('id')
+        .single();
+      if (!historyInsert.error && historyInsert.data?.id) {
+        setLastHistoryId(historyInsert.data.id);
+        void loadHistory();
+      }
+
+      if (!results.length) setNotice('No Google Maps businesses found for this area/search.');
       else setNotice('Google Maps/Places results loaded for the selected area. Select the businesses you want to save.');
     } catch (e: any) {
       setNotice(e?.message || 'Live search failed.');
@@ -133,11 +181,22 @@ export const DataExtractorView: React.FC = () => {
       });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
+      let mergedCount = 0;
       setLiveResults(prev => {
         const seen = new Set(prev.map((r:any) => r.external_id));
-        return [...prev, ...(data?.results || []).filter((r:any) => !seen.has(r.external_id))];
+        const merged = [...prev, ...(data?.results || []).filter((r:any) => !seen.has(r.external_id))];
+        mergedCount = merged.length;
+        return merged;
       });
       setNextPageToken(data?.nextPageToken || null);
+      if (lastHistoryId) {
+        await supabase
+          .from('engagex_lead_search_history')
+          .update({ results_count: Math.max(mergedCount, liveResults.length + (data?.results || []).length) })
+          .eq('workspace_id', activeWorkspace?.id)
+          .eq('id', lastHistoryId);
+        void loadHistory();
+      }
       setNotice((data?.results || []).length ? 'More Google Maps businesses loaded.' : 'No more results available for this search.');
     } catch (e:any) {
       setNotice(e?.message || 'Could not load more results.');
@@ -228,7 +287,15 @@ export const DataExtractorView: React.FC = () => {
       (skipped ? ' · ' + skipped + ' duplicate' + (skipped === 1 ? '' : 's') + ' skipped.' : '.')
     );
     setSelectedLive({});
+    if (lastHistoryId) {
+      await supabase
+        .from('engagex_lead_search_history')
+        .update({ saved_count: fresh.length })
+        .eq('workspace_id', activeWorkspace.id)
+        .eq('id', lastHistoryId);
+    }
     await load();
+    await loadHistory();
   };
 
   const filtered = useMemo(() => {
@@ -284,11 +351,11 @@ export const DataExtractorView: React.FC = () => {
   };
 
   const kpis = useMemo(() => ({
-    total: rows.length,
-    review: rows.filter(r => r.outreach_eligibility === 'review_required').length,
-    allowed: rows.filter(r => r.outreach_eligibility === 'allowed').length,
-    converted: rows.filter(r => r.status === 'converted').length
-  }), [rows]);
+    searches: history.length,
+    results: history.reduce((sum, h) => sum + Number(h.results_count || 0), 0),
+    saved: history.reduce((sum, h) => sum + Number(h.saved_count || 0), 0),
+    locations: new Set(history.map(h => [h.area, h.city].filter(Boolean).join(', ')).filter(Boolean)).size
+  }), [history]);
 
   return (
     <CommercialShell
@@ -298,10 +365,10 @@ export const DataExtractorView: React.FC = () => {
       <div style={{maxWidth:1540,margin:'0 auto',padding:'2px 2px 24px'}}>
       <div style={{ display:'grid', gridTemplateColumns:'repeat(4,minmax(0,1fr))', gap:16, marginBottom:18 }}>
         {[
-          ['TOTAL PROSPECTS', kpis.total, 'Saved business records'],
-          ['REVIEW REQUIRED', kpis.review, 'Check contact basis before outreach'],
-          ['OUTREACH ALLOWED', kpis.allowed, 'Approved for contact workflow'],
-          ['CONVERTED', kpis.converted, 'Moved into CRM pipeline']
+          ['TOTAL SEARCHES', kpis.searches, 'Search history records'],
+          ['RESULTS FOUND', kpis.results, 'Google Maps results discovered'],
+          ['SAVED TO CONTACTS', kpis.saved, 'Businesses saved for review'],
+          ['LOCATIONS SEARCHED', kpis.locations, 'Unique city / area combinations']
         ].map(([label,value,note]) => (
           <article key={String(label)} style={{background:'#fff',border:'1px solid #dfe9ed',borderRadius:16,padding:'18px 20px',minHeight:112,boxShadow:'0 8px 24px rgba(15,23,42,.04)'}}>
             <span style={{fontSize:10,fontWeight:900,color:'#78909c',letterSpacing:.8}}>{label}</span>
@@ -440,27 +507,36 @@ export const DataExtractorView: React.FC = () => {
       <section style={{background:'#fff',border:'1px solid #dfe9ed',borderRadius:16,overflow:'hidden',boxShadow:'0 10px 28px rgba(15,23,42,.04)'}}>
         <div style={{padding:'16px 18px',borderBottom:'1px solid #edf2f4',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
           <div>
-            <b style={{fontSize:15}}>Prospect Database</b>
-            <small style={{display:'block',fontSize:8,color:'#94a3b8',marginTop:2}}>{filtered.length} visible records</small>
+            <b style={{fontSize:15}}>Search History</b>
+            <small style={{display:'block',fontSize:9,color:'#94a3b8',marginTop:2}}>What was searched, where it was searched, how many results were found, and how many were saved</small>
           </div>
-          <div style={{display:'flex',gap:6,alignItems:'center',fontSize:8,color:'#64748b'}}><ShieldCheck size={13}/> Deduplication + outreach review enabled</div>
+          <div style={{fontSize:9,color:'#64748b'}}>{history.length} searches</div>
         </div>
-        <div style={{overflowX:'auto'}}>
-          <table className="dashTable" style={{marginTop:0}}>
-            <thead><tr><th>Business</th><th>Business Type</th><th>Source</th><th>Location</th><th>Phone</th><th>Email</th><th>Lead Score</th><th>Recommended Product</th><th>Status</th><th>Outreach</th></tr></thead>
+        <div style={{overflowX:'hidden'}}>
+          <table className="dashTable" style={{marginTop:0,width:'100%',tableLayout:'fixed'}}>
+            <thead>
+              <tr>
+                <th>Date / Time</th>
+                <th>Search / Category</th>
+                <th>Area</th>
+                <th>City</th>
+                <th>Source</th>
+                <th>Results</th>
+                <th>Saved</th>
+              </tr>
+            </thead>
             <tbody>
-              {loading ? <tr><td colSpan={8}>Loading prospects…</td></tr> : filtered.length===0 ? <tr><td colSpan={8}>No prospects found. Add manually or connect an official data source.</td></tr> : filtered.map(r=>(
-                <tr key={r.id}>
-                  <td><b>{r.business_name}</b>{r.website && <small style={{display:'block',fontSize:8,color:'#94a3b8'}}>{r.website}</small>}</td>
-                  <td>{r.business_type || r.category || '—'}</td>
-                  <td>{sourceLabel[r.source] || 'Web Search'}</td>
-                  <td>{r.location || '—'}</td>
-                  <td>{r.phone || '—'}</td>
-                  <td>{r.email || '—'}</td>
-                  <td><span className="dashBadge" style={{background:(r.lead_score||0)>=80?'#ecfdf5':(r.lead_score||0)>=60?'#fff7ed':'#f8fafc',color:(r.lead_score||0)>=80?'#047857':(r.lead_score||0)>=60?'#c2410c':'#64748b'}}>{r.lead_score ?? '—'}{r.lead_score != null ? '%' : ''}</span></td>
-                  <td><b style={{fontSize:9,color:'#0369a1'}}>{r.recommended_product || '—'}</b></td>
-                  <td><span className="dashBadge">{r.status}</span></td>
-                  <td><span className="dashBadge" style={{background:r.outreach_eligibility==='allowed'?'#ecfdf5':r.outreach_eligibility==='do_not_contact'?'#fef2f2':'#fff7ed',color:r.outreach_eligibility==='allowed'?'#047857':r.outreach_eligibility==='do_not_contact'?'#b91c1c':'#c2410c'}}>{r.outreach_eligibility.replace('_',' ')}</span></td>
+              {history.length===0 ? (
+                <tr><td colSpan={7}>No search history yet. Run a Google Maps search above.</td></tr>
+              ) : history.map(h=>(
+                <tr key={h.id}>
+                  <td>{new Date(h.created_at).toLocaleString('en-IN')}</td>
+                  <td><b>{h.category || h.search_term || 'Businesses'}</b>{h.search_term && h.category && <small style={{display:'block',fontSize:9,color:'#94a3b8'}}>{h.search_term}</small>}</td>
+                  <td>{h.area || '—'}</td>
+                  <td>{h.city || '—'}</td>
+                  <td>Google Maps</td>
+                  <td><span className="dashBadge">{h.results_count}</span></td>
+                  <td><span className="dashBadge" style={{background:h.saved_count ? '#ecfdf5':'#f8fafc',color:h.saved_count ? '#047857':'#64748b'}}>{h.saved_count}</span></td>
                 </tr>
               ))}
             </tbody>
