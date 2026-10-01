@@ -23,6 +23,8 @@ export const SettingsView: React.FC = () => {
   const [dltEntityId, setDltEntityId] = useState(saved.dltEntityId || '110156982300001');
   const [senderHeader, setSenderHeader] = useState(saved.senderHeader || 'SVRDTC');
   const [optOutKeyword, setOptOutKeyword] = useState(saved.optOutKeyword || 'STOP');
+  const [whatsappGroupLink, setWhatsappGroupLink] = useState(saved.whatsappGroupLink || 'https://chat.whatsapp.com/KdCB01biJWTH6ihxLjFO8O');
+  const [whatsappInviteMessage, setWhatsappInviteMessage] = useState(saved.whatsappInviteMessage || `Namaste {{first_name}} ji,\n\nAKBS Poultry Farming Private Limited se aapko hamare official WhatsApp updates group me join karne ka invite hai.\n\n*Join Group:* {{group_link}}\n\nYahan aapko project updates, process information aur important notices milenge.\n\nDhanyavaad,\n*AKBS Poultry Farming Private Limited*`);
   const [auditSearch, setAuditSearch] = useState('');
   const [notice, setNotice] = useState('');
 
@@ -41,12 +43,14 @@ export const SettingsView: React.FC = () => {
     setWorkspaceName(saved.workspaceName || ''); setSupportEmail(saved.supportEmail || '');
     setDltEntityId(saved.dltEntityId || ''); setSenderHeader(saved.senderHeader || '');
     setOptOutKeyword(saved.optOutKeyword || 'STOP'); setTimezone(saved.timezone || 'Asia/Kolkata');
+    setWhatsappGroupLink(saved.whatsappGroupLink || 'https://chat.whatsapp.com/KdCB01biJWTH6ihxLjFO8O');
+    setWhatsappInviteMessage(saved.whatsappInviteMessage || `Namaste {{first_name}} ji,\n\nAKBS Poultry Farming Private Limited se aapko hamare official WhatsApp updates group me join karne ka invite hai.\n\n*Join Group:* {{group_link}}\n\nYahan aapko project updates, process information aur important notices milenge.\n\nDhanyavaad,\n*AKBS Poultry Farming Private Limited*`);
   }, [workspaceSettings]);
   const handleSaveProfile = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
       if (!saveWorkspaceSettings) throw new Error('Workspace is unavailable.');
-      await saveWorkspaceSettings({workspaceName,supportEmail,dltEntityId,senderHeader,optOutKeyword,timezone});
+      await saveWorkspaceSettings({...saved,workspaceName,supportEmail,dltEntityId,senderHeader,optOutKeyword,timezone,whatsappGroupLink,whatsappInviteMessage});
       setNotice('Workspace settings saved to the database.');
     } catch (error) { setNotice(error instanceof Error ? error.message : 'Settings could not be saved.'); }
   };
@@ -115,6 +119,26 @@ export const SettingsView: React.FC = () => {
                   value={senderHeader}
                   onChange={(e) => setSenderHeader(e.target.value)}
                 />
+              </div>
+
+              <div className="field full">
+                <label>WhatsApp Group Invite Link</label>
+                <input
+                  value={whatsappGroupLink}
+                  onChange={(e) => setWhatsappGroupLink(e.target.value)}
+                  placeholder="https://chat.whatsapp.com/..."
+                />
+                <small className="fieldHint">Used by the manual WhatsApp invite workflow. No API is required.</small>
+              </div>
+
+              <div className="field full">
+                <label>Default WhatsApp Group Invite Message</label>
+                <textarea
+                  rows={8}
+                  value={whatsappInviteMessage}
+                  onChange={(e) => setWhatsappInviteMessage(e.target.value)}
+                />
+                <small className="fieldHint">Supported placeholders: {{first_name}} and {{group_link}}. Keep the group link only once for a cleaner WhatsApp preview.</small>
               </div>
 
               <div className="field full">
