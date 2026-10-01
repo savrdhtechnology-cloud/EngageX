@@ -6,7 +6,7 @@ import { channelReady, composeUrl, gmailComposeUrl, manualChannelReady, personal
 import { renderCompanyMessage, resolveWorkspaceBranding, templateVariables } from '../lib/workspaceBranding';
 
 export const ContactOutreach: React.FC<{ contacts: Contact[]; initialChannel: ChannelType; onClose: () => void; onEditContact?: (contact: Contact) => void }> = ({ contacts, initialChannel, onClose, onEditContact }) => {
-  const { templates, sendMessage, addCampaign, workspaceSettings, activeWorkspace, integrations, setAppTab, userSession } = useApp();
+  const { templates, sendMessage, addCampaign, updateContact, workspaceSettings, activeWorkspace, integrations, setAppTab, userSession } = useApp();
   const [channel, setChannel] = useState(initialChannel);
   const [subject, setSubject] = useState('');
   const [body, setBody] = useState('');
@@ -44,6 +44,31 @@ export const ContactOutreach: React.FC<{ contacts: Contact[]; initialChannel: Ch
   const emailUnavailable = !canManage ? 'Owner, Admin or Manager access is required to send from CRM.'
     : !emailConfigured ? 'This workspace email provider is not configured. Use Open Gmail or Open Email App, or configure the provider in Integrations.'
     : !eligible.length ? 'CRM email needs recorded email consent. Review contact details to record permission already received. You can open an individual email in Gmail or your mail app.' : '';
+
+  const recordChannelConsent = async (contact: Contact) => {
+    if (!canManage || busy) return;
+    const label = channel === 'email' ? 'email' : channel === 'sms' ? 'SMS' : 'WhatsApp';
+    const ok = window.confirm(
+      'Confirm that this contact has already given permission for ' + label + ' messages. EngageX will record that consent in the CRM.'
+    );
+    if (!ok) return;
+    try {
+      setBusy(true);
+      setError('');
+      const patch = channel === 'email'
+        ? { email_consent: true }
+        : channel === 'sms'
+          ? { sms_consent: true }
+          : { whatsapp_consent: true };
+      await updateContact(contact.id, patch);
+      setNotice(label + ' consent recorded for ' + contact.name + '. You can now send from CRM.');
+    } catch (e) {
+      setError((e as Error).message || 'Could not update consent.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const emailSelected = async () => {
     if (sending.current || channel !== 'email' || !emailConfigured) return;
     try {
@@ -82,7 +107,19 @@ export const ContactOutreach: React.FC<{ contacts: Contact[]; initialChannel: Ch
     <p>{contacts.length} selected · <b>{manualContacts.length} available to open {channel.toUpperCase()}</b> · {eligible.length} with recorded channel consent.</p>
     <div className="contactRecipientList">{contacts.map(c=><div key={c.id}><b>{c.name}</b><span>{channel==='email'?c.email:c.mobile}</span>
       <small>{!manualChannelReady(c,channel)?`Unavailable: ${c.status!=='active'?c.status:'missing or invalid '+(channel==='email'?'email':'mobile')}`:channelReady(c,channel)?'Channel consent recorded':'Individual compose available · channel consent not recorded'}</small>
-      {onEditContact&&canManage&&<button className="contactReview" disabled={busy} onClick={()=>onEditContact(c)} aria-label={`Review details for ${c.name}`}>Review details</button>}
+      <div style={{display:'flex',gap:8,alignItems:'center',flexWrap:'wrap'}}>
+        {!channelReady(c,channel) && manualChannelReady(c,channel) && canManage && (
+          <button
+            className="contactReview"
+            disabled={busy}
+            onClick={()=>void recordChannelConsent(c)}
+            aria-label={`Record ${channel} consent for ${c.name}`}
+          >
+            Record {channel==='email'?'Email':channel==='sms'?'SMS':'WhatsApp'} Consent
+          </button>
+        )}
+        {onEditContact&&canManage&&<button className="contactReview" disabled={busy} onClick={()=>onEditContact(c)} aria-label={`Review details for ${c.name}`}>Review details</button>}
+      </div>
     </div>)}</div>
     {!manualContacts.length&&<div className="notice errorNotice" role="alert">No selected contact has an active status and a valid {channel==='email'?'email address':'mobile number'} for this channel. Review contact details.</div>}
     {error&&<div className="notice errorNotice" role="alert">{error}</div>}{notice&&<div className="notice" role="status">{notice}</div>}
@@ -98,7 +135,7 @@ export const ContactOutreach: React.FC<{ contacts: Contact[]; initialChannel: Ch
       <div className="field full"><label htmlFor="contact-message-body">Message</label><textarea id="contact-message-body" rows={5} value={body} disabled={busy} onChange={e=>{setBody(e.target.value);setAcceptedIds([]);setNotice('');}} placeholder="Hello {{first_name}}, ..."/><small>Variables: {'{{first_name}}, {{company_name}}, {{website}}, {{contact_number}}, {{demo_link}}'}</small></div>
       {manualContact&&body&&<div className="field full"><div className="previewCard"><b>Preview for {manualContact.name}</b>{channel==='email'&&subject&&<p><b>Subject:</b> {rendered(subject,manualContact)}</p>}<p style={{whiteSpace:'pre-wrap'}}>{messageFor(manualContact)}</p></div></div>}
     </div>
-    <p className="contactComposeHelp">Open buttons prepare one contact’s message in your app. You press Send there. Opening a link does not change recorded consent or mark a CRM message as sent. If your mail app does not open, use Open Gmail.</p>
+    <p className="contactComposeHelp">Use <b>Send email from CRM</b> for Resend delivery after email consent is recorded. Open Email App / Gmail are manual fallback options only and do not use Resend.</p>
     <div className="modalActions">
       {manualContact&&!busy&&!missingVariables.length?<>
         <a className="cbtn primary" href={manualUrl} target={channel==='whatsapp'?'_blank':undefined} rel={channel==='whatsapp'?'noopener noreferrer':undefined} onClick={()=>opened(channel==='email'?'Email app':channel==='sms'?'SMS':'WhatsApp')}>
