@@ -211,7 +211,7 @@ export const LiveAppProvider: React.FC<{children: React.ReactNode}> = ({ childre
       const subject=personalizeMessage(payload.subject||'Message from '+brand.companyName,contact,brand),text=renderCompanyMessage(payload.body,contact,brand);
       const missing=templateVariables(subject+'\n'+text);
       if(missing.length) throw new Error('Fill these message values before sending: '+missing.join(', ')+'.');
-      const {data,error}=await supabase.functions.invoke('engagex-send-email',{body:{workspace_id:wid,contact_id:payload.contact_id,subject,text,request_id:payload.request_id||crypto.randomUUID()}});
+      const {data,error}=await supabase.functions.invoke('engagex-send-email',{body:{workspace_id:wid,contact_id:payload.contact_id,subject,text,request_id:payload.request_id||crypto.randomUUID(),campaign_id:payload.campaign_id||null}});
       if(error) {
         let message=error.message;
         if(error.context instanceof Response) { try { message=(await error.context.json()).error||message; } catch {} }
