@@ -90,7 +90,8 @@ export const DataExtractorView: React.FC = () => {
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
       setLiveResults(data?.results || []);
-      if (!(data?.results || []).length) setNotice('No live businesses found for this search.');
+      if (!(data?.results || []).length) setNotice('No live Google web results found for this search.');
+      else if (data?.engine === 'google_web') setNotice('Live Google web results loaded. Select the businesses you want to save.');
     } catch (e: any) {
       setNotice(e?.message || 'Live search failed.');
     } finally {
@@ -218,11 +219,11 @@ export const DataExtractorView: React.FC = () => {
           <div>
             <small style={{fontSize:8,color:'#64748b',fontWeight:900}}>SOURCE CONNECTORS</small>
             <h3 style={{margin:'4px 0 4px',fontSize:15}}>Prospecting Sources</h3>
-            <p style={{margin:0,fontSize:9,color:'#64748b'}}>Use official APIs/exports or compliant imports. EngageX does not bypass site restrictions or CAPTCHAs.</p>
+            <p style={{margin:0,fontSize:9,color:'#64748b'}}>Live Google public web search is enabled. EngageX does not bypass site restrictions or CAPTCHAs.</p>
           </div>
           <div style={{display:'flex',gap:8,flexWrap:'wrap'}}>
             {[
-              ['Google Maps','Official Places API ready'],
+              ['Google Search','Live public web search'],
               ['IndiaMART','API / export connector ready'],
               ['Justdial','Licensed feed / export ready']
             ].map(([name,status]) => (
@@ -261,8 +262,8 @@ export const DataExtractorView: React.FC = () => {
         <section style={{background:'#fff',border:'1px solid #dfe9ed',borderRadius:14,overflow:'hidden',marginBottom:14}}>
           <div style={{padding:'12px 14px',borderBottom:'1px solid #edf2f4',display:'flex',justifyContent:'space-between',alignItems:'center',gap:10,flexWrap:'wrap'}}>
             <div>
-              <b style={{fontSize:11}}>Live Google Maps Results</b>
-              <small style={{display:'block',fontSize:8,color:'#94a3b8',marginTop:2}}>{liveResults.length} businesses found · select records to save into Lead Intelligence</small>
+              <b style={{fontSize:11}}>Live Google Search Results</b>
+              <small style={{display:'block',fontSize:8,color:'#94a3b8',marginTop:2}}>{liveResults.length} public web results found · select records to save into Lead Intelligence</small>
             </div>
             <button onClick={saveLiveProspects} className="primaryBtn small">Save Selected</button>
           </div>
