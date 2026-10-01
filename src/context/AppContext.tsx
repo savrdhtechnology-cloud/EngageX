@@ -73,7 +73,7 @@ export interface AppContextType {
 
   // Messages
   messages: Message[];
-  sendMessage: (payload: { contact_id: string; channel: ChannelType; body: string; subject?: string; request_id?: string }) => void | Promise<void>;
+  sendMessage: (payload: { contact_id: string; channel: ChannelType; body: string; subject?: string; request_id?: string; campaign_id?: string }) => void | Promise<void>;
   simulateCustomerReply: (contact_id: string, text?: string) => void | Promise<void>;
 
   // Templates
