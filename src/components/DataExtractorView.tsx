@@ -117,7 +117,7 @@ export const DataExtractorView: React.FC = () => {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = 'engagex-prospects.csv';
+    a.download = 'engagex-lead-intelligence.csv';
     a.click();
     URL.revokeObjectURL(url);
   };
@@ -131,8 +131,8 @@ export const DataExtractorView: React.FC = () => {
 
   return (
     <CommercialShell
-      title="Data Extractor"
-      subtitle="Build and review business prospect lists by category, location and source before adding them to outreach workflows."
+      title="EngageX Lead Intelligence"
+      subtitle="Discover, organize and qualify business prospects by source, category and location for Savrdh Technology outreach workflows."
     >
       <div style={{ display:'grid', gridTemplateColumns:'repeat(4,minmax(0,1fr))', gap:12, marginBottom:14 }}>
         {[
