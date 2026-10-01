@@ -19,7 +19,7 @@ import { Template, ChannelType } from '../types';
 const ALLOWED_VARS = ['first_name', 'last_name', 'company', 'mobile', 'city', 'order_id', 'delivery_date', 'tracking_url', 'otp', 'discount_percent', 'offer_url', 'blog_url', 'group_link', 'application_link', 'support_number'];
 
 export const TemplatesView: React.FC = () => {
-  const { templates, addTemplate, deleteTemplate } = useApp();
+  const { templates, addTemplate, updateTemplate, deleteTemplate } = useApp();
 
   const [activeChannel, setActiveChannel] = useState<'all' | ChannelType>('all');
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -34,6 +34,7 @@ export const TemplatesView: React.FC = () => {
   const [dltTemplateId, setDltTemplateId] = useState('');
   const [subject, setSubject] = useState('');
   const [body, setBody] = useState('');
+  const [editingTemplate, setEditingTemplate] = useState<Template | null>(null);
 
   const filteredTemplates = useMemo(() => {
     if (activeChannel === 'all') return templates;
@@ -50,6 +51,18 @@ export const TemplatesView: React.FC = () => {
 
   const extractVariables = (text: string) => {
     return [...text.matchAll(/{{\s*([a-zA-Z0-9_]+)\s*}}/g)].map((m) => m[1]);
+  };
+
+  const openEditor = (template: Template) => {
+    setEditingTemplate(template);
+    setName(template.name);
+    setChannel(template.channel);
+    setCategory(template.category);
+    setDltTemplateId(template.dlt_template_id || '');
+    setSubject(template.subject || '');
+    setBody(template.body);
+    setError('');
+    setIsModalOpen(true);
   };
 
   const handleSave = async (e: React.FormEvent) => {
