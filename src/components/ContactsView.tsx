@@ -44,6 +44,7 @@ export const ContactsView: React.FC = () => {
   const [prospectCity, setProspectCity] = useState('all');
   const [prospectProduct, setProspectProduct] = useState('all');
   const [prospectDate, setProspectDate] = useState<'all' | 'today' | '7d' | '30d'>('all');
+  const [selectedProspectIds, setSelectedProspectIds] = useState<string[]>([]);
 
   useEffect(() => {
     const loadProspects = async () => {
@@ -221,6 +222,32 @@ export const ContactsView: React.FC = () => {
       return matchesSearch && matchesTag;
     });
   }, [contacts, search, selectedTag]);
+
+
+  const toggleAllProspects = (checked:boolean) => {
+    setSelectedProspectIds(checked ? filteredProspects.map((p:any) => p.id) : []);
+  };
+
+  const toggleProspect = (id:string) => {
+    setSelectedProspectIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
+  };
+
+  const deleteSelectedProspects = async () => {
+    if (!activeWorkspace?.id || !selectedProspectIds.length) return;
+    if (!confirm(`Delete ${selectedProspectIds.length} saved prospect(s)?`)) return;
+    const { error } = await supabase
+      .from('engagex_prospects')
+      .delete()
+      .eq('workspace_id', activeWorkspace.id)
+      .in('id', selectedProspectIds);
+    if (error) {
+      setError(error.message);
+      return;
+    }
+    setProspects(prev => prev.filter((p:any) => !selectedProspectIds.includes(p.id)));
+    setNotice(`${selectedProspectIds.length} saved prospect(s) deleted.`);
+    setSelectedProspectIds([]);
+  };
 
   // Open modal for new contact
   const handleOpenNew = () => {
@@ -610,7 +637,18 @@ export const ContactsView: React.FC = () => {
               <h3>Saved Prospect Directory</h3>
               <p>Category, city/area, date and recommended-product filters for saved Lead Intelligence data.</p>
             </div>
-            <span style={{fontSize:10,color:'#64748b'}}>Showing {filteredProspects.length} of {prospects.length} saved prospects</span>
+            <div style={{display:'flex',gap:8,alignItems:'center',flexWrap:'wrap'}}>
+              <span style={{fontSize:10,color:'#64748b'}}>Showing {filteredProspects.length} of {prospects.length} saved prospects</span>
+              {selectedProspectIds.length > 0 && (
+                <button
+                  className="cbtn secondary"
+                  onClick={deleteSelectedProspects}
+                  style={{color:'#b91c1c',borderColor:'#fecaca'}}
+                >
+                  Delete Selected ({selectedProspectIds.length})
+                </button>
+              )}
+            </div>
           </div>
 
           {prospectsLoading ? (
@@ -628,6 +666,13 @@ export const ContactsView: React.FC = () => {
               <table className="dataTable">
                 <thead>
                   <tr>
+                    <th style={{width:32}}>
+                      <input
+                        type="checkbox"
+                        checked={filteredProspects.length > 0 && selectedProspectIds.length === filteredProspects.length}
+                        onChange={e=>toggleAllProspects(e.target.checked)}
+                      />
+                    </th>
                     <th>Business</th>
                     <th>Category</th>
                     <th>City / Area</th>
@@ -641,6 +686,13 @@ export const ContactsView: React.FC = () => {
                 <tbody>
                   {filteredProspects.map((p:any) => (
                     <tr key={p.id}>
+                      <td>
+                        <input
+                          type="checkbox"
+                          checked={selectedProspectIds.includes(p.id)}
+                          onChange={()=>toggleProspect(p.id)}
+                        />
+                      </td>
                       <td>
                         <b>{p.business_name}</b>
                         <small className="cellSub">{p.website || p.source_url || '—'}</small>
