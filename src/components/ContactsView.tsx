@@ -30,9 +30,10 @@ import { Contact, ChannelType } from '../types';
 import { supabase } from '../lib/supabase';
 import { channelReady, contactDirectory, contactPhone, planProspectImport, prospectToContact as mapProspect } from '../lib/contactDirectory';
 import { ContactOutreach } from './ContactOutreach';
+import { DEFAULT_COMPANY_INVITE, renderCompanyMessage, resolveWorkspaceBranding } from '../lib/workspaceBranding';
 
 const DEFAULT_WHATSAPP_GROUP_LINK = 'https://chat.whatsapp.com/KdCB01biJWTH6ihxLjFO8O';
-const DEFAULT_INVITE_MESSAGE = `Namaste {{first_name}} ji,\n\nAKBS Poultry Farming Private Limited se aapko hamare official WhatsApp updates group me join karne ka invite hai.\n\n*Join Group:* {{group_link}}\n\nYahan aapko project updates, process information aur important notices milenge.\n\nDhanyavaad,\n*AKBS Poultry Farming Private Limited*`;
+const DEFAULT_INVITE_MESSAGE = DEFAULT_COMPANY_INVITE;
 
 export const ContactsView: React.FC = () => {
   const { contacts, templates, addContact, updateContact, deleteContact, bulkDeleteContacts, importContacts, workspaceSettings, activeWorkspace, refreshContacts } = useApp();
@@ -193,7 +194,7 @@ export const ContactsView: React.FC = () => {
       setError('This contact does not have a valid mobile number.');
       return;
     }
-    const message = encodeURIComponent(buildGroupInviteMessage(contact.name));
+    const message = encodeURIComponent(buildGroupInviteMessage(contact));
     window.open(`https://wa.me/${phone}?text=${message}`, '_blank', 'noopener,noreferrer');
     setNotice(`WhatsApp invite opened for ${contact.name}. Press Send in WhatsApp to deliver it.`);
   };
@@ -226,7 +227,7 @@ export const ContactsView: React.FC = () => {
 
   const copyGroupInvite = async (contact: Contact) => {
     try {
-      await navigator.clipboard.writeText(buildGroupInviteMessage(contact.name));
+      await navigator.clipboard.writeText(buildGroupInviteMessage(contact));
       setNotice(`Group invite message copied for ${contact.name}.`);
     } catch {
       setError('Could not copy the invite message.');
@@ -249,13 +250,10 @@ export const ContactsView: React.FC = () => {
   // Form state
   const groupInviteLink = workspaceSettings?.whatsappGroupLink || (activeWorkspace?.slug==='akbs-poultry-farming'?DEFAULT_WHATSAPP_GROUP_LINK:'');
   const defaultTemplate = templates.find((t) => t.id === workspaceSettings?.defaultWhatsAppTemplateId && t.channel === 'whatsapp');
-  const groupInviteTemplate = defaultTemplate?.body || workspaceSettings?.whatsappInviteMessage || (activeWorkspace?.slug==='akbs-poultry-farming'?DEFAULT_INVITE_MESSAGE:`Namaste {{first_name}} ji,\n\n${activeWorkspace?.name || 'Our team'} invites you to join our updates group:\n{{group_link}}`);
-  const buildGroupInviteMessage = (name: string) => {
-    const firstName = (name || 'Ji').trim().split(/\s+/)[0] || 'Ji';
-    return groupInviteTemplate
-      .replaceAll('{{first_name}}', firstName)
-      .replaceAll('{{group_link}}', groupInviteLink)
-      .trim();
+  const groupInviteTemplate = defaultTemplate?.body || workspaceSettings?.whatsappInviteMessage || DEFAULT_INVITE_MESSAGE;
+  const buildGroupInviteMessage = (contact: Contact) => {
+    const branding={...resolveWorkspaceBranding(activeWorkspace,workspaceSettings),groupLink:groupInviteLink};
+    return renderCompanyMessage(groupInviteTemplate,contact,branding).trim();
   };
 
   const [form, setForm] = useState({

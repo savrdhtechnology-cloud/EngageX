@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   MessageSquareText,
   Plus,
@@ -15,11 +15,13 @@ import {
 import { CommercialShell } from './CommercialShell';
 import { useApp } from '../context/AppContext';
 import { Template, ChannelType } from '../types';
+import { COMPANY_TEMPLATE_VARIABLES, CONTACT_TEMPLATE_VARIABLES, personalizeMessage, renderCompanyMessage, resolveWorkspaceBranding, templateVariables } from '../lib/workspaceBranding';
 
-const ALLOWED_VARS = ['first_name', 'last_name', 'company', 'mobile', 'city', 'order_id', 'delivery_date', 'tracking_url', 'otp', 'discount_percent', 'offer_url', 'blog_url', 'group_link', 'application_link', 'support_number'];
+const ALLOWED_VARS: readonly string[] = [...CONTACT_TEMPLATE_VARIABLES,...COMPANY_TEMPLATE_VARIABLES,'order_id','delivery_date','tracking_url','otp','discount_percent','offer_url','blog_url'];
 
 export const TemplatesView: React.FC = () => {
-  const { templates, addTemplate, updateTemplate, deleteTemplate } = useApp();
+  const { templates, contacts, activeWorkspace, workspaceSettings, addTemplate, updateTemplate, deleteTemplate } = useApp();
+  const branding=resolveWorkspaceBranding(activeWorkspace,workspaceSettings);
 
   const [activeChannel, setActiveChannel] = useState<'all' | ChannelType>('all');
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -35,6 +37,8 @@ export const TemplatesView: React.FC = () => {
   const [subject, setSubject] = useState('');
   const [body, setBody] = useState('');
   const [editingTemplate, setEditingTemplate] = useState<Template | null>(null);
+  useEffect(()=>{setSelectedPreview(prev=>templates.find(t=>t.id===prev?.id)||templates[0]||null);},[templates,activeWorkspace?.id]);
+  useEffect(()=>{setIsModalOpen(false);setEditingTemplate(null);setError('');},[activeWorkspace?.id]);
 
   const filteredTemplates = useMemo(() => {
     if (activeChannel === 'all') return templates;
@@ -49,9 +53,7 @@ export const TemplatesView: React.FC = () => {
     };
   }, [templates]);
 
-  const extractVariables = (text: string) => {
-    return [...text.matchAll(/{{\s*([a-zA-Z0-9_]+)\s*}}/g)].map((m) => m[1]);
-  };
+  const extractVariables = templateVariables;
 
   const openEditor = (template: Template) => {
     setEditingTemplate(template);
@@ -73,7 +75,7 @@ export const TemplatesView: React.FC = () => {
       return;
     }
 
-    const vars = extractVariables(body);
+    const vars = extractVariables(subject+'\n'+body);
     const unapproved = vars.filter((v) => !ALLOWED_VARS.includes(v));
     if (unapproved.length > 0) {
       setError(`Unsupported variables: ${unapproved.join(', ')}. Use supported tags like {{first_name}}, {{company}}`);
@@ -105,7 +107,7 @@ export const TemplatesView: React.FC = () => {
     setSubject('');
     setEditingTemplate(null);
     setError('');
-    } catch (error) { console.error(error); }
+    } catch (error) { setError(error instanceof Error?error.message:'Could not save the template.'); }
   };
 
   return (
@@ -347,19 +349,7 @@ export const TemplatesView: React.FC = () => {
                   }}
                 >
                   <p style={{ margin: 0, whiteSpace: 'pre-wrap' }}>
-                    {selectedPreview.body
-                      .replaceAll('{{first_name}}', 'Aarav')
-                      .replaceAll('{{company}}', 'TechCorp India')
-                      .replaceAll('{{order_id}}', 'ORD-9821')
-                      .replaceAll('{{courier}}', 'BlueDart')
-                      .replaceAll('{{delivery_date}}', 'Tomorrow')
-                      .replaceAll('{{tracking_url}}', 'https://trk.savrdh.com/9821')
-                      .replaceAll('{{discount_percent}}', '30')
-                      .replaceAll('{{expiry_date}}', 'Oct 15, 2026')
-                      .replaceAll('{{offer_url}}', 'https://savrdh.com/offer')
-                      .replaceAll('{{group_link}}', 'https://chat.whatsapp.com/KdCB01biJWTH6ihxLjFO8O')
-                      .replaceAll('{{application_link}}', 'https://akbspoultry.com/')
-                      .replaceAll('{{support_number}}', '+91 9893345906')}
+                    {renderCompanyMessage(selectedPreview.body,contacts[0],branding)}
                   </p>
                   <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '4px', fontSize: '8px', color: '#6b7280' }}>
                     10:45 AM ✓✓
@@ -383,26 +373,17 @@ export const TemplatesView: React.FC = () => {
                 <div><b style={{ color: '#64748b' }}>Channel:</b> <span style={{ textTransform: 'uppercase', fontWeight: 800 }}>{selectedPreview?.channel}</span></div>
                 {selectedPreview?.subject && (
                   <div style={{ marginTop: '4px' }}>
-                    <b style={{ color: '#64748b' }}>Subject:</b> {selectedPreview.subject.replaceAll('{{company}}', 'Savrdh Technology')}
+                    <b style={{ color: '#64748b' }}>Subject:</b> {personalizeMessage(selectedPreview.subject,contacts[0],branding)}
                   </div>
                 )}
                 {selectedPreview?.dlt_template_id && (
                   <div style={{ marginTop: '4px' }}>
-                    <b style={{ color: '#64748b' }}>DLT Entity:</b> SVRDTC ({selectedPreview.dlt_template_id})
+                    <b style={{ color: '#64748b' }}>DLT Template:</b> {selectedPreview.dlt_template_id}
                   </div>
                 )}
               </div>
               <div style={{ padding: '16px', fontSize: '11px', lineHeight: 1.6, color: '#334155', minHeight: '180px', whiteSpace: 'pre-wrap' }}>
-                {selectedPreview?.body
-                  .replaceAll('{{first_name}}', 'Aarav')
-                  .replaceAll('{{company}}', 'Savrdh Technology')
-                  .replaceAll('{{otp}}', '492810')
-                  .replaceAll('{{discount_percent}}', '30')
-                  .replaceAll('{{offer_url}}', 'https://savrdh.com/deals')
-                  .replaceAll('{{blog_url}}', 'https://savrdh.com/blog')
-                  .replaceAll('{{group_link}}', 'https://chat.whatsapp.com/KdCB01biJWTH6ihxLjFO8O')
-                  .replaceAll('{{application_link}}', 'https://akbspoultry.com/')
-                  .replaceAll('{{support_number}}', '+91 9893345906')}
+                {selectedPreview&&renderCompanyMessage(selectedPreview.body,contacts[0],branding)}
               </div>
             </div>
           )}

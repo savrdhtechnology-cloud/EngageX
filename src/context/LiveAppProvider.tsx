@@ -4,6 +4,7 @@ import { AppContext, type AppContextType } from './AppContext';
 import { supabase, workspaceSlug } from '../lib/supabase';
 import { normalizePhone } from '../lib/metrics';
 import type { Contact, Campaign, UserSession, WorkspaceBilling } from '../types';
+import { personalizeMessage, renderCompanyMessage, resolveWorkspaceBranding, templateVariables } from '../lib/workspaceBranding';
 
 const signedOut: UserSession = { email: '', name: '', role: '', avatar: 'U', isAuthenticated: false };
 const emptyBilling: WorkspaceBilling = { plan_code: 'unconfigured', plan_name: 'Not activated', status: 'pending', monthly_price: 0, message_credits: 0, contact_limit: 10000, monthly_message_limit: 0, whatsapp_usage: 0, sms_usage: 0, email_usage: 0 };
@@ -83,6 +84,12 @@ export const LiveAppProvider: React.FC<{children: React.ReactNode}> = ({ childre
     const rows = await fetchRows(table,wid);
     if (ticket === generation.current && wid===workspaceId.current) setRecords(prev => ({...prev,[table]:rows}));
   };
+  const refreshProfile = async () => {
+    const wid=requireWorkspace(),ticket=generation.current;
+    const {data,error}=await supabase.from('engagex_workspaces').select('*').eq('id',wid).single();
+    if(error) throw new Error(error.message);
+    if(ticket===generation.current&&wid===workspaceId.current) setWorkspace(data);
+  };
   const run = async <T,>(action: () => Promise<T>): Promise<T> => { try {setError('');return await action();} catch(e) {reportError(e);throw e;} };
   const insert = async (table: typeof tables[number], values: any) => run(async () => {
     const {data,error} = await supabase.from('engagex_'+table).insert({...values,workspace_id:requireWorkspace()}).select().single();
@@ -101,7 +108,7 @@ export const LiveAppProvider: React.FC<{children: React.ReactNode}> = ({ childre
   });
   useEffect(() => {
     if (!workspace?.id || !userSession.isAuthenticated) return;
-    const sync = () => { for (const table of tables) void refresh(table).catch(reportError); };
+    const sync = () => { void refreshProfile().catch(reportError);for (const table of tables) void refresh(table).catch(reportError); };
     sync(); window.addEventListener('focus', sync);
     return () => window.removeEventListener('focus', sync);
   }, [workspace?.id, appTab, userSession.isAuthenticated]);
@@ -158,7 +165,13 @@ export const LiveAppProvider: React.FC<{children: React.ReactNode}> = ({ childre
     simulateCampaignRun:()=>reportError(new Error('Simulations are disabled for the live database.')),
     sendMessage:payload=>run(async()=>{
       if(payload.channel!=='email') unavailable('SMS / WhatsApp API provider');
-      const {data,error}=await supabase.functions.invoke('engagex-send-email',{body:{workspace_id:requireWorkspace(),contact_id:payload.contact_id,subject:payload.subject,text:payload.body,request_id:payload.request_id||crypto.randomUUID()}});
+      const wid=requireWorkspace(),contact=records.contacts.find(c=>c.id===payload.contact_id);
+      if(!contact) throw new Error('Select a saved contact in this workspace.');
+      const brand=resolveWorkspaceBranding(workspace,workspace.settings);
+      const subject=personalizeMessage(payload.subject||'Message from '+brand.companyName,contact,brand),text=renderCompanyMessage(payload.body,contact,brand);
+      const missing=templateVariables(subject+'\n'+text);
+      if(missing.length) throw new Error('Fill these message values before sending: '+missing.join(', ')+'.');
+      const {data,error}=await supabase.functions.invoke('engagex-send-email',{body:{workspace_id:wid,contact_id:payload.contact_id,subject,text,request_id:payload.request_id||crypto.randomUUID()}});
       if(error) {
         let message=error.message;
         if(error.context instanceof Response) { try { message=(await error.context.json()).error||message; } catch {} }

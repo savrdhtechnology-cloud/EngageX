@@ -12,19 +12,26 @@ import {
 } from 'lucide-react';
 import { CommercialShell } from './CommercialShell';
 import { useApp } from '../context/AppContext';
+import { DEFAULT_COMPANY_INVITE, normalizeCompanyWebsite, resolveWorkspaceBranding } from '../lib/workspaceBranding';
+import { validPhone } from '../lib/contactDirectory';
 
 export const SettingsView: React.FC = () => {
-  const { auditLogs, resetToDefaults, addAuditLog, workspaceSettings, saveWorkspaceSettings } = useApp();
+  const { auditLogs, resetToDefaults, addAuditLog, workspaceSettings, activeWorkspace, saveWorkspaceSettings } = useApp();
 
   const saved = workspaceSettings || {};
+  const branding = resolveWorkspaceBranding(activeWorkspace,saved);
   const [timezone, setTimezone] = useState(saved.timezone || 'Asia/Kolkata');
-  const [workspaceName, setWorkspaceName] = useState(saved.workspaceName || 'Savrdh Technology Enterprise');
-  const [supportEmail, setSupportEmail] = useState(saved.supportEmail || 'support@savrdh.com');
-  const [dltEntityId, setDltEntityId] = useState(saved.dltEntityId || '110156982300001');
-  const [senderHeader, setSenderHeader] = useState(saved.senderHeader || 'SVRDTC');
+  const [workspaceName, setWorkspaceName] = useState(saved.workspaceName || activeWorkspace?.name || '');
+  const [companyName, setCompanyName] = useState(branding.companyName);
+  const [companyWebsite, setCompanyWebsite] = useState(branding.website);
+  const [contactPhone, setContactPhone] = useState(branding.contactNumber);
+  const [demoLink, setDemoLink] = useState(branding.demoLink);
+  const [supportEmail, setSupportEmail] = useState(branding.supportEmail);
+  const [dltEntityId, setDltEntityId] = useState(saved.dltEntityId || '');
+  const [senderHeader, setSenderHeader] = useState(saved.senderHeader || '');
   const [optOutKeyword, setOptOutKeyword] = useState(saved.optOutKeyword || 'STOP');
-  const [whatsappGroupLink, setWhatsappGroupLink] = useState(saved.whatsappGroupLink || 'https://chat.whatsapp.com/KdCB01biJWTH6ihxLjFO8O');
-  const [whatsappInviteMessage, setWhatsappInviteMessage] = useState(saved.whatsappInviteMessage || `Namaste {{first_name}} ji,\n\nAKBS Poultry Farming Private Limited se aapko hamare official WhatsApp updates group me join karne ka invite hai.\n\n*Join Group:* {{group_link}}\n\nYahan aapko project updates, process information aur important notices milenge.\n\nDhanyavaad,\n*AKBS Poultry Farming Private Limited*`);
+  const [whatsappGroupLink, setWhatsappGroupLink] = useState(branding.groupLink);
+  const [whatsappInviteMessage, setWhatsappInviteMessage] = useState(saved.whatsappInviteMessage || DEFAULT_COMPANY_INVITE);
   const [auditSearch, setAuditSearch] = useState('');
   const [notice, setNotice] = useState('');
 
@@ -40,17 +47,18 @@ export const SettingsView: React.FC = () => {
   }, [auditLogs, auditSearch]);
 
   useEffect(() => {
-    setWorkspaceName(saved.workspaceName || ''); setSupportEmail(saved.supportEmail || '');
+    setWorkspaceName(saved.workspaceName || activeWorkspace?.name || '');setCompanyName(branding.companyName);setCompanyWebsite(branding.website);setContactPhone(branding.contactNumber);setDemoLink(branding.demoLink);setSupportEmail(branding.supportEmail);
     setDltEntityId(saved.dltEntityId || ''); setSenderHeader(saved.senderHeader || '');
     setOptOutKeyword(saved.optOutKeyword || 'STOP'); setTimezone(saved.timezone || 'Asia/Kolkata');
-    setWhatsappGroupLink(saved.whatsappGroupLink || 'https://chat.whatsapp.com/KdCB01biJWTH6ihxLjFO8O');
-    setWhatsappInviteMessage(saved.whatsappInviteMessage || `Namaste {{first_name}} ji,\n\nAKBS Poultry Farming Private Limited se aapko hamare official WhatsApp updates group me join karne ka invite hai.\n\n*Join Group:* {{group_link}}\n\nYahan aapko project updates, process information aur important notices milenge.\n\nDhanyavaad,\n*AKBS Poultry Farming Private Limited*`);
-  }, [workspaceSettings]);
+    setWhatsappGroupLink(branding.groupLink);setWhatsappInviteMessage(saved.whatsappInviteMessage || DEFAULT_COMPANY_INVITE);
+  }, [workspaceSettings,activeWorkspace?.id]);
   const handleSaveProfile = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
       if (!saveWorkspaceSettings) throw new Error('Workspace is unavailable.');
-      await saveWorkspaceSettings({...saved,workspaceName,supportEmail,dltEntityId,senderHeader,optOutKeyword,timezone,whatsappGroupLink,whatsappInviteMessage});
+      if(contactPhone&&!validPhone(contactPhone)) throw new Error('Enter a valid company contact number with country code.');
+      const website=normalizeCompanyWebsite(companyWebsite);
+      await saveWorkspaceSettings({...saved,workspaceName,companyName,companyWebsite:website,website,contactPhone,contactNumber:contactPhone,supportNumber:contactPhone,contactEmail:supportEmail,supportEmail,demoLink:normalizeCompanyWebsite(demoLink)||website,dltEntityId,senderHeader,optOutKeyword,timezone,whatsappGroupLink,whatsappInviteMessage});
       setNotice('Workspace settings saved to the database.');
     } catch (error) { setNotice(error instanceof Error ? error.message : 'Settings could not be saved.'); }
   };
@@ -87,6 +95,19 @@ export const SettingsView: React.FC = () => {
                 />
               </div>
 
+              <div className="field">
+                <label htmlFor="settings-company-name">Company Name for Messages</label><input id="settings-company-name" value={companyName} onChange={e=>setCompanyName(e.target.value)} required/>
+              </div>
+              <div className="field">
+                <label htmlFor="settings-company-website">Company Website</label><input id="settings-company-website" value={companyWebsite} onChange={e=>setCompanyWebsite(e.target.value)} placeholder="https://company.com"/>
+              </div>
+              <div className="field">
+                <label htmlFor="settings-company-phone">Company Contact Number</label><input id="settings-company-phone" type="tel" value={contactPhone} onChange={e=>setContactPhone(e.target.value)}/>
+              </div>
+              <div className="field">
+                <label htmlFor="settings-company-demo">Demo / Details Link</label><input id="settings-company-demo" value={demoLink} onChange={e=>setDemoLink(e.target.value)} placeholder="Uses company website by default"/>
+              </div>
+              <div className="field full"><small>Client company details are filled automatically when the client is added. These details appear in that workspace’s messages.</small></div>
               <div className="field">
                 <label>Support Email Address</label>
                 <input

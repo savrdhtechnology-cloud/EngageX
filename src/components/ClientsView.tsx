@@ -1,8 +1,9 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Building2, Plus, Search, Users, MessageCircle, ArrowRight, RefreshCw } from 'lucide-react';
+import { Building2, Plus, Search, Users, MessageCircle, ArrowRight, RefreshCw, Edit2 } from 'lucide-react';
 import { CommercialShell } from './CommercialShell';
 import { supabase } from '../lib/supabase';
 import { useApp } from '../context/AppContext';
+import { normalizeCompanyWebsite, resolveWorkspaceBranding } from '../lib/workspaceBranding';
 
 type ClientWorkspace = {
   id: string;
@@ -24,10 +25,11 @@ export const ClientsView: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [notice, setNotice] = useState('');
-  const [form, setForm] = useState({ name: '', email: '', phone: '' });
+  const [form, setForm] = useState({ name: '', email: '', phone: '', website: '' });
+  const [editingClient, setEditingClient] = useState<ClientWorkspace | null>(null);
 
   const loadClients = async () => {
-    setLoading(true); setNotice('');
+    setLoading(true);
     const { data, error } = await supabase
       .from('engagex_workspaces')
       .select('id,slug,name,owner_id,settings,created_at')
@@ -47,23 +49,24 @@ export const ClientsView: React.FC = () => {
 
   const createClient = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!form.name.trim()) return;
+    if (!form.name.trim() || saving) return;
     setSaving(true); setNotice('');
-    const slug = slugify(form.name);
-    const { error } = await supabase.rpc('engagex_create_client_workspace', {
-      p_name: form.name.trim(),
-      p_slug: slug,
-      p_contact_email: form.email.trim(),
-      p_contact_phone: form.phone.trim(),
-    });
-    if (error) setNotice(error.message);
-    else {
-      setNotice('Client workspace created successfully.');
-      setForm({ name: '', email: '', phone: '' });
+    try {
+      const profile={p_name:form.name.trim(),p_contact_email:form.email.trim(),p_contact_phone:form.phone.trim(),p_website:normalizeCompanyWebsite(form.website)};
+      const { error } = await supabase.rpc(editingClient?'engagex_update_client_profile':'engagex_create_client_workspace_with_profile',
+        editingClient?{...profile,p_workspace_id:editingClient.id}:{...profile,p_slug:slugify(form.name)});
+      if(error) throw new Error(error.message);
+      setNotice(editingClient?'Company profile updated. Messages will use these details.':'Client workspace created with company details and message templates.');
+      setForm({ name: '', email: '', phone: '', website: '' });
+      setEditingClient(null);
       setShowForm(false);
       await loadClients();
-    }
-    setSaving(false);
+    } catch(e) { setNotice(e instanceof Error?e.message:'Could not save the client company.'); }
+    finally { setSaving(false); }
+  };
+  const editClient = (client:ClientWorkspace) => {
+    const brand=resolveWorkspaceBranding(client,client.settings);
+    setEditingClient(client);setForm({name:brand.companyName,email:brand.supportEmail,phone:brand.contactNumber,website:brand.website});setShowForm(true);setNotice('');
   };
 
   return (
@@ -87,7 +90,7 @@ export const ClientsView: React.FC = () => {
               <RefreshCw size={16} />
             </button>
           </div>
-          <button onClick={() => setShowForm(v => !v)} className="primaryBtn small">
+          <button onClick={() => {setEditingClient(null);setForm({name:'',email:'',phone:'',website:''});setShowForm(v => !v||!!editingClient);}} className="primaryBtn small">
             <Plus size={16} /> Add Client Company
           </button>
         </div>
@@ -95,7 +98,7 @@ export const ClientsView: React.FC = () => {
         {notice && <div className="notice" style={{ marginBottom: 14 }}>{notice}</div>}
 
         {showForm && (
-          <form onSubmit={createClient} style={{ background: '#fff', border: '1px solid #dbe7ee', borderRadius: 16, padding: 18, marginBottom: 18, display: 'grid', gridTemplateColumns: '1.4fr 1fr 1fr auto', gap: 10, alignItems: 'end' }}>
+          <form onSubmit={createClient} style={{ background: '#fff', border: '1px solid #dbe7ee', borderRadius: 16, padding: 18, marginBottom: 18, display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(180px,1fr))', gap: 10, alignItems: 'end' }}>
             <label style={{ fontSize: 11, fontWeight: 800, color: '#475569' }}>
               Company Name
               <input value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} required placeholder="e.g. ABC Private Limited" style={{ display: 'block', width: '100%', marginTop: 6, padding: 10, border: '1px solid #dbe7ee', borderRadius: 9 }} />
@@ -106,9 +109,13 @@ export const ClientsView: React.FC = () => {
             </label>
             <label style={{ fontSize: 11, fontWeight: 800, color: '#475569' }}>
               Contact Phone
-              <input value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })} placeholder="optional" style={{ display: 'block', width: '100%', marginTop: 6, padding: 10, border: '1px solid #dbe7ee', borderRadius: 9 }} />
+              <input value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })} required type="tel" placeholder="Company support number" style={{ display: 'block', width: '100%', marginTop: 6, padding: 10, border: '1px solid #dbe7ee', borderRadius: 9 }} />
             </label>
-            <button disabled={saving} className="primaryBtn small" type="submit">{saving ? 'Creating…' : 'Create Workspace'}</button>
+            <label style={{ fontSize: 11, fontWeight: 800, color: '#475569' }}>Company Website
+              <input value={form.website} onChange={e=>setForm({...form,website:e.target.value})} required placeholder="https://company.com" style={{display:'block',width:'100%',marginTop:6,padding:10,border:'1px solid #dbe7ee',borderRadius:9}}/>
+            </label>
+            <button disabled={saving} className="primaryBtn small" type="submit">{saving ? 'Saving…' : editingClient?'Save Company Details':'Create Workspace'}</button>
+            <small style={{gridColumn:'1/-1',color:'#64748b'}}>Company name, website, support number and email are used automatically in this client’s messages.</small>
           </form>
         )}
 
@@ -121,13 +128,17 @@ export const ClientsView: React.FC = () => {
               <h3 style={{ margin: '0 0 6px' }}>No client companies found</h3>
               <p style={{ margin: 0, color: '#64748b' }}>Add a company to create a separate EngageX workspace.</p>
             </div>
-          ) : filtered.map(client => (
+          ) : filtered.map(client => {const brand=resolveWorkspaceBranding(client,client.settings);return (
             <article key={client.id} className="featureCard" style={{ minHeight: 190, display: 'flex', flexDirection: 'column' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10 }}>
                 <div className="featureIcon"><Building2 size={21} /></div>
                 <span style={{ fontSize: 9, fontWeight: 900, color: '#047857', background: '#ecfdf5', padding: '5px 8px', borderRadius: 999 }}>ACTIVE</span>
               </div>
               <h3 style={{ marginBottom: 6 }}>{client.name}</h3>
+              <div style={{fontSize:11,color:'#64748b',marginBottom:10,display:'grid',gap:4}}>
+                {brand.website&&<span>{brand.website}</span>}{brand.contactNumber&&<span>{brand.contactNumber}</span>}{brand.supportEmail&&<span>{brand.supportEmail}</span>}
+                <button type="button" onClick={()=>editClient(client)} style={{border:0,background:'transparent',color:'#0891b2',padding:0,textAlign:'left',display:'flex',alignItems:'center',gap:5,cursor:'pointer'}}><Edit2 size={12}/>Edit Company Details</button>
+              </div>
               <p style={{ minHeight: 0, margin: '0 0 12px' }}>{client.settings?.purpose || 'Separate client communication workspace.'}</p>
               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 'auto' }}>
                 <span style={{ fontSize: 10, background: '#f0f9ff', color: '#0369a1', padding: '5px 8px', borderRadius: 999 }}><Users size={12} style={{ verticalAlign: 'middle', marginRight: 4 }} /> Contacts isolated</span>
@@ -144,7 +155,7 @@ export const ClientsView: React.FC = () => {
                 </button>
               </div>
             </article>
-          ))}
+          );})}
         </div>
       </div>
     </CommercialShell>

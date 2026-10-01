@@ -21,9 +21,11 @@ import {
 import { CommercialShell } from './CommercialShell';
 import { useApp } from '../context/AppContext';
 import { ChannelType, Contact } from '../types';
+import { personalizeMessage, resolveWorkspaceBranding } from '../lib/workspaceBranding';
 
 export const MessagesView: React.FC = () => {
-  const { contacts, messages, sendMessage, simulateCustomerReply, templates, activeChatContactId, setActiveChatContactId } = useApp();
+  const { contacts, messages, sendMessage, simulateCustomerReply, templates, activeWorkspace, workspaceSettings, activeChatContactId, setActiveChatContactId } = useApp();
+  const branding=resolveWorkspaceBranding(activeWorkspace,workspaceSettings);
 
   const [selectedContactId, setSelectedContactId] = useState<string>(activeChatContactId || contacts[0]?.id || '');
   const [channelFilter, setChannelFilter] = useState<'all' | ChannelType>('all');
@@ -36,6 +38,7 @@ export const MessagesView: React.FC = () => {
   const [isSimulating, setIsSimulating] = useState(false);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  useEffect(()=>{setSelectedContactId('');setTextBody('');setEmailSubject('');setError('');setShowTemplates(false);},[activeWorkspace?.id]);
 
   useEffect(() => {
     if (activeChatContactId) {
@@ -80,7 +83,7 @@ export const MessagesView: React.FC = () => {
       contact_id: selectedContact.id,
       channel: activeChannel,
       body: textBody,
-      subject: activeChannel === 'email' ? emailSubject || 'Message from Savrdh EngageX' : undefined,
+      subject: activeChannel === 'email' ? emailSubject || 'Message from '+branding.companyName : undefined,
     });
 
     setError('');
@@ -102,11 +105,9 @@ export const MessagesView: React.FC = () => {
 
   const handleInsertTemplate = (tplBody: string) => {
     if (!selectedContact) return;
-    const personalized = tplBody
-      .replaceAll('{{first_name}}', selectedContact.first_name || selectedContact.name)
-      .replaceAll('{{company}}', selectedContact.company || 'Savrdh Technology')
-      .replaceAll('{{mobile}}', selectedContact.mobile || '')
-      .replaceAll('{{city}}', selectedContact.city || 'Bengaluru');
+    const personalized = personalizeMessage(tplBody,selectedContact,branding);
+    const template=templates.find(t=>t.body===tplBody&&t.channel===activeChannel);
+    if(activeChannel==='email') setEmailSubject(personalizeMessage(template?.subject||'Message from {{company_name}}',selectedContact,branding));
     setTextBody(personalized);
     setShowTemplates(false);
   };

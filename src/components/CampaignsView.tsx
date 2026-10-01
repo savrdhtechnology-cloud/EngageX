@@ -21,9 +21,11 @@ import { CommercialShell } from './CommercialShell';
 import { useApp } from '../context/AppContext';
 import { Campaign, ChannelType } from '../types';
 import { campaignAudienceLabel } from '../lib/metrics';
+import { COMPANY_TEMPLATE_VARIABLES, renderCompanyMessage, resolveWorkspaceBranding } from '../lib/workspaceBranding';
 
 export const CampaignsView: React.FC = () => {
-  const { campaigns, contacts, addCampaign, queueCampaign, updateCampaign, deleteCampaign } = useApp();
+  const { campaigns, contacts, activeWorkspace, workspaceSettings, addCampaign, queueCampaign, updateCampaign, deleteCampaign } = useApp();
+  const branding=resolveWorkspaceBranding(activeWorkspace,workspaceSettings);
 
   const [filterStatus, setFilterStatus] = useState<string>('all');
   const [isWizardOpen, setIsWizardOpen] = useState(false);
@@ -482,7 +484,7 @@ export const CampaignsView: React.FC = () => {
                   />
                   <div style={{ display: 'flex', gap: '6px', alignItems: 'center', marginTop: '6px', flexWrap: 'wrap' }}>
                     <small style={{ fontSize: '9px', color: '#64748b' }}>Quick insert variables:</small>
-                    {['first_name', 'company', 'mobile', 'city'].map((v) => (
+                    {['first_name', 'company', 'mobile', 'city',...COMPANY_TEMPLATE_VARIABLES].map((v) => (
                       <button
                         key={v}
                         type="button"
@@ -506,11 +508,7 @@ export const CampaignsView: React.FC = () => {
                   <div className="previewCard">
                     <b>Live Render Preview:</b>
                     <p>
-                      {body
-                        .replaceAll('{{first_name}}', 'Aarav')
-                        .replaceAll('{{company}}', 'TechCorp India')
-                        .replaceAll('{{mobile}}', '+91 98765 43210')
-                        .replaceAll('{{city}}', 'Bengaluru') || 'Your message preview will appear here.'}
+                      {renderCompanyMessage(body,contacts[0],branding) || 'Your message preview will appear here.'}
                     </p>
                   </div>
                 </div>

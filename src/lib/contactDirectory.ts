@@ -1,5 +1,6 @@
 import type { Contact, ChannelType } from '../types';
 import { normalizePhone } from './metrics';
+import { personalizeMessage, type WorkspaceBranding } from './workspaceBranding';
 
 export type BusinessProspect = {
   id?: string; business_name?: string | null; business_type?: string | null; category?: string | null;
@@ -73,10 +74,8 @@ export function channelReady(contact: Contact, channel: ChannelType) {
     : channel === 'sms' ? contact.sms_consent : contact.whatsapp_consent);
 }
 
-export function personalize(text: string, contact: Contact, groupLink = '') {
-  const values: Record<string, string> = { first_name: contact.first_name || contact.name.split(/\s+/)[0],
-    name: contact.name, company: contact.company, mobile: contact.mobile, email: contact.email, city: contact.city, group_link: groupLink };
-  return text.replace(/\{\{(first_name|name|company|mobile|email|city|group_link)\}\}/g, (_, key) => values[key] || '');
+export function personalize(text: string, contact: Contact, branding: string | Partial<WorkspaceBranding> = '') {
+  return personalizeMessage(text,contact,typeof branding === 'string' ? {groupLink:branding} : branding);
 }
 
 export function composeUrl(contact: Contact, channel: ChannelType, body: string, subject = '') {
