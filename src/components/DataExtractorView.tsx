@@ -146,6 +146,23 @@ export const DataExtractorView: React.FC = () => {
     }
   };
 
+
+  const allLiveSelected = liveResults.length > 0 && liveResults.every((r:any,i:number) =>
+    !!selectedLive[r.external_id || String(i)]
+  );
+
+  const toggleSelectAllLive = (checked:boolean) => {
+    if (!checked) {
+      setSelectedLive({});
+      return;
+    }
+    const next: Record<string, boolean> = {};
+    liveResults.forEach((r:any,i:number) => {
+      next[r.external_id || String(i)] = true;
+    });
+    setSelectedLive(next);
+  };
+
   const saveLiveProspects = async () => {
     if (!activeWorkspace?.id) return;
     const selected = liveResults.filter((r, i) => selectedLive[r.external_id || String(i)]);
@@ -320,28 +337,51 @@ export const DataExtractorView: React.FC = () => {
               <b style={{fontSize:15}}>Live Google Maps Results</b>
               <small style={{display:'block',fontSize:10,color:'#94a3b8',marginTop:2}}>{liveResults.length} Google Maps businesses found for {[area, location].filter(Boolean).join(', ') || 'your search'} · select records to save</small>
             </div>
-            <div style={{display:'flex',gap:8}}>
+            <div style={{display:'flex',gap:8,alignItems:'center'}}>
+              <span style={{fontSize:11,fontWeight:800,color:'#64748b'}}>
+                {Object.values(selectedLive).filter(Boolean).length} selected
+              </span>
               {nextPageToken && <button onClick={loadMoreResults} disabled={searching} className="primaryBtn small" style={{background:'#fff',color:'#0f7490',border:'1px solid #bfe4ee'}}>{searching ? 'Loading…' : 'Load More'}</button>}
               <button onClick={saveLiveProspects} className="primaryBtn small">Save Selected</button>
             </div>
           </div>
           <div style={{overflowX:'auto'}}>
-            <table className="dashTable" style={{marginTop:0,fontSize:11}}>
-              <thead><tr><th></th><th>Business</th><th>Business Type</th><th>Phone</th><th>Email</th><th>Source</th><th>Match</th><th>Lead Score</th><th>Recommended Product</th></tr></thead>
+            <table className="dashTable" style={{marginTop:0,fontSize:13,minWidth:1180,lineHeight:1.45}}>
+              <thead>
+                <tr>
+                  <th style={{width:42,textAlign:'center'}}>
+                    <input
+                      type="checkbox"
+                      aria-label="Select all live results"
+                      checked={allLiveSelected}
+                      onChange={e=>toggleSelectAllLive(e.target.checked)}
+                      style={{width:17,height:17,cursor:'pointer'}}
+                    />
+                  </th>
+                  <th style={{minWidth:250,fontSize:11,padding:'13px 12px'}}>Business</th>
+                  <th style={{minWidth:170,fontSize:11,padding:'13px 12px'}}>Business Type</th>
+                  <th style={{minWidth:145,fontSize:11,padding:'13px 12px'}}>Phone</th>
+                  <th style={{minWidth:180,fontSize:11,padding:'13px 12px'}}>Email</th>
+                  <th style={{minWidth:140,fontSize:11,padding:'13px 12px'}}>Source</th>
+                  <th style={{minWidth:90,fontSize:11,padding:'13px 12px'}}>Match</th>
+                  <th style={{minWidth:105,fontSize:11,padding:'13px 12px'}}>Lead Score</th>
+                  <th style={{minWidth:155,fontSize:11,padding:'13px 12px'}}>Recommended Product</th>
+                </tr>
+              </thead>
               <tbody>
                 {liveResults.map((r:any,i:number)=>{
                   const key=r.external_id || String(i);
                   return (
                     <tr key={key}>
-                      <td><input type="checkbox" checked={!!selectedLive[key]} onChange={e=>setSelectedLive(prev=>({...prev,[key]:e.target.checked}))}/></td>
-                      <td><b>{r.business_name}</b>{r.website && <small style={{display:'block',fontSize:8,color:'#94a3b8'}}>{r.source_domain || r.website}</small>}</td>
-                      <td>{r.business_type || r.category || '—'}</td>
-                      <td>{r.phone || '—'}</td>
-                      <td>{r.email || '—'}</td>
-                      <td>{r.source_domain || 'Web'}</td>
-                      <td><span className="dashBadge">{r.match_score ?? '—'}{r.match_score != null ? '%' : ''}</span></td>
-                      <td><span className="dashBadge" style={{background:(r.lead_score||0)>=80?'#ecfdf5':(r.lead_score||0)>=60?'#fff7ed':'#f8fafc',color:(r.lead_score||0)>=80?'#047857':(r.lead_score||0)>=60?'#c2410c':'#64748b'}}>{r.lead_score ?? '—'}{r.lead_score != null ? '%' : ''}</span></td>
-                      <td><b style={{fontSize:9,color:'#0369a1'}}>{r.recommended_product || 'EngageX'}</b></td>
+                      <td style={{textAlign:'center',padding:'14px 10px'}}><input type="checkbox" checked={!!selectedLive[key]} onChange={e=>setSelectedLive(prev=>({...prev,[key]:e.target.checked}))} style={{width:17,height:17,cursor:'pointer'}}/></td>
+                      <td style={{padding:'14px 12px',fontSize:13}}><b style={{fontSize:13}}>{r.business_name}</b>{r.website && <small style={{display:'block',fontSize:10,color:'#94a3b8',marginTop:3,maxWidth:260,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{r.source_domain || r.website}</small>}</td>
+                      <td style={{padding:'14px 12px',fontSize:12}}>{r.business_type || r.category || '—'}</td>
+                      <td style={{padding:'14px 12px',fontSize:12,fontWeight:700}}>{r.phone || '—'}</td>
+                      <td style={{padding:'14px 12px',fontSize:12}}>{r.email || '—'}</td>
+                      <td style={{padding:'14px 12px',fontSize:12}}>{r.source_domain || 'Google Maps'}</td>
+                      <td style={{padding:'14px 12px'}}><span className="dashBadge" style={{fontSize:11,padding:'5px 9px'}}>{r.match_score ?? '—'}{r.match_score != null ? '%' : ''}</span></td>
+                      <td style={{padding:'14px 12px'}}><span className="dashBadge" style={{fontSize:11,padding:'5px 9px',background:(r.lead_score||0)>=80?'#ecfdf5':(r.lead_score||0)>=60?'#fff7ed':'#f8fafc',color:(r.lead_score||0)>=80?'#047857':(r.lead_score||0)>=60?'#c2410c':'#64748b'}}>{r.lead_score ?? '—'}{r.lead_score != null ? '%' : ''}</span></td>
+                      <td style={{padding:'14px 12px'}}><b style={{fontSize:12,color:'#0369a1'}}>{r.recommended_product || 'EngageX'}</b></td>
                     </tr>
                   );
                 })}
