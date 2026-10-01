@@ -22,6 +22,7 @@ import { TeamView } from './components/TeamView';
 import { BillingView } from './components/BillingView';
 import { SettingsView } from './components/SettingsView';
 import { ClientsView } from './components/ClientsView';
+import { DataExtractorView } from './components/DataExtractorView';
 
 const AppContent: React.FC = () => {
   const { currentView, appTab, userSession } = useApp();
@@ -37,6 +38,8 @@ const AppContent: React.FC = () => {
       return <DashboardView />;
     case 'clients':
       return <ClientsView />;
+    case 'data-extractor':
+      return <DataExtractorView />;
     case 'contacts':
       return <ContactsView />;
     case 'campaigns':
