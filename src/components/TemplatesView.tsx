@@ -16,7 +16,7 @@ import { CommercialShell } from './CommercialShell';
 import { useApp } from '../context/AppContext';
 import { Template, ChannelType } from '../types';
 
-const ALLOWED_VARS = ['first_name', 'last_name', 'company', 'mobile', 'city', 'order_id', 'delivery_date', 'tracking_url', 'otp', 'discount_percent', 'offer_url', 'blog_url'];
+const ALLOWED_VARS = ['first_name', 'last_name', 'company', 'mobile', 'city', 'order_id', 'delivery_date', 'tracking_url', 'otp', 'discount_percent', 'offer_url', 'blog_url', 'group_link', 'application_link', 'support_number'];
 
 export const TemplatesView: React.FC = () => {
   const { templates, addTemplate, deleteTemplate } = useApp();
@@ -325,7 +325,10 @@ export const TemplatesView: React.FC = () => {
                       .replaceAll('{{tracking_url}}', 'https://trk.savrdh.com/9821')
                       .replaceAll('{{discount_percent}}', '30')
                       .replaceAll('{{expiry_date}}', 'Oct 15, 2026')
-                      .replaceAll('{{offer_url}}', 'https://savrdh.com/offer')}
+                      .replaceAll('{{offer_url}}', 'https://savrdh.com/offer')
+                      .replaceAll('{{group_link}}', 'https://chat.whatsapp.com/KdCB01biJWTH6ihxLjFO8O')
+                      .replaceAll('{{application_link}}', 'https://akbspoultry.com/')
+                      .replaceAll('{{support_number}}', '+91 9893345906')}
                   </p>
                   <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '4px', fontSize: '8px', color: '#6b7280' }}>
                     10:45 AM ✓✓
@@ -365,7 +368,10 @@ export const TemplatesView: React.FC = () => {
                   .replaceAll('{{otp}}', '492810')
                   .replaceAll('{{discount_percent}}', '30')
                   .replaceAll('{{offer_url}}', 'https://savrdh.com/deals')
-                  .replaceAll('{{blog_url}}', 'https://savrdh.com/blog')}
+                  .replaceAll('{{blog_url}}', 'https://savrdh.com/blog')
+                  .replaceAll('{{group_link}}', 'https://chat.whatsapp.com/KdCB01biJWTH6ihxLjFO8O')
+                  .replaceAll('{{application_link}}', 'https://akbspoultry.com/')
+                  .replaceAll('{{support_number}}', '+91 9893345906')}
               </div>
             </div>
           )}
