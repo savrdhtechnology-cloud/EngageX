@@ -6,7 +6,7 @@ import { channelReady, composeUrl, gmailComposeUrl, manualChannelReady, personal
 import { renderCompanyMessage, resolveWorkspaceBranding, templateVariables } from '../lib/workspaceBranding';
 
 export const ContactOutreach: React.FC<{ contacts: Contact[]; initialChannel: ChannelType; onClose: () => void; onEditContact?: (contact: Contact) => void }> = ({ contacts, initialChannel, onClose, onEditContact }) => {
-  const { templates, sendMessage, addCampaign, updateContact, workspaceSettings, activeWorkspace, integrations, setAppTab, userSession } = useApp();
+  const { templates, sendMessage, addCampaign, updateCampaign, updateContact, workspaceSettings, activeWorkspace, integrations, setAppTab, userSession } = useApp();
   const [channel, setChannel] = useState(initialChannel);
   const [subject, setSubject] = useState('');
   const [body, setBody] = useState('');
@@ -74,15 +74,51 @@ export const ContactOutreach: React.FC<{ contacts: Contact[]; initialChannel: Ch
     try {
       validate();
       sending.current=true;
-      setBusy(true); setError(''); let sent = acceptedIds.length;
+      setBusy(true); setError('');
+
+      const campaign = await addCampaign({
+        name: `EMAIL · ${eligible.length} selected contacts · ${new Date().toLocaleDateString('en-IN')}`,
+        objective: 'Direct CRM email from Contact Management',
+        channels: ['email'],
+        status: 'draft',
+        subject,
+        body,
+        send_mode: 'draft',
+        scheduled_at: null,
+        target_audience: selectedContactAudience(eligible.map(c => c.id))
+      });
+
+      let sent = 0;
+      let failed = 0;
+
       for (const contact of eligible.filter(c => !acceptedIds.includes(c.id))) {
         const contentKey = contact.id + '\n' + rendered(subject,contact) + '\n' + messageFor(contact);
         let requestId = requestIds.current.get(contentKey);
         if (!requestId) { requestId = crypto.randomUUID(); requestIds.current.set(contentKey,requestId); }
-        await sendMessage({ contact_id: contact.id, channel: 'email', body: messageFor(contact), subject: rendered(subject,contact), request_id: requestId });
-        setAcceptedIds(prev => [...prev,contact.id]); sent++;
-        setNotice(`${sent} of ${eligible.length} emails accepted by the email provider.`);
+        try {
+          await sendMessage({
+            contact_id: contact.id,
+            channel: 'email',
+            body: messageFor(contact),
+            subject: rendered(subject,contact),
+            request_id: requestId,
+            campaign_id: campaign.id
+          });
+          setAcceptedIds(prev => [...prev,contact.id]);
+          sent++;
+        } catch {
+          failed++;
+        }
+        setNotice(`${sent} sent · ${failed} failed of ${eligible.length}.`);
       }
+
+      await updateCampaign(campaign.id,{
+        status:'completed',
+        sent_count:sent,
+        failed_count:failed,
+        delivered_count:0,
+        read_count:0
+      });
     } catch (e) { setError((e as Error).message); }
     finally { sending.current=false; setBusy(false); }
   };
