@@ -7,7 +7,7 @@ import { useApp } from '../context/AppContext';
 type Prospect = {
   id: string;
   workspace_id: string;
-  source: 'google_maps' | 'indiamart' | 'justdial' | 'csv' | 'manual';
+  source: 'google_maps' | 'web_search' | 'indiamart' | 'justdial' | 'csv' | 'manual';
   business_name: string;
   category: string | null;
   location: string | null;
@@ -45,6 +45,8 @@ export const DataExtractorView: React.FC = () => {
   const [source, setSource] = useState<'all' | Prospect['source']>('all');
   const [category, setCategory] = useState('');
   const [location, setLocation] = useState('');
+  const [area, setArea] = useState('');
+  const [nextPageToken, setNextPageToken] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [notice, setNotice] = useState('');
   const [showAdd, setShowAdd] = useState(false);
@@ -81,26 +83,64 @@ export const DataExtractorView: React.FC = () => {
   useEffect(() => { void load(); }, [activeWorkspace?.id]);
 
   const runLiveSearch = async () => {
-    if (!category.trim() && !query.trim()) {
-      setNotice('Enter a category or search term first.');
+    if (!category.trim() && !query.trim() && !location.trim() && !area.trim()) {
+      setNotice('Enter a business/category, area or city first.');
       return;
     }
     setSearching(true);
     setNotice('');
     setLiveResults([]);
     setSelectedLive({});
+    setNextPageToken(null);
     try {
-      const textQuery = [category.trim() || query.trim(), location.trim()].filter(Boolean).join(' in ');
       const { data, error } = await supabase.functions.invoke('engagex-lead-search', {
-        body: { query: textQuery, limit: 20 }
+        body: {
+          query: query.trim(),
+          category: category.trim(),
+          area: area.trim(),
+          city: location.trim(),
+          limit: 20
+        }
       });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
       setLiveResults(data?.results || []);
-      if (!(data?.results || []).length) setNotice('No live Google web results found for this search.');
-      else setNotice(data?.engine === 'google_places' ? 'Google Maps/Places results loaded. Select the businesses you want to save.' : 'Search results loaded. Select the businesses you want to save.');
+      setNextPageToken(data?.nextPageToken || null);
+      if (!(data?.results || []).length) setNotice('No Google Maps businesses found for this area/search.');
+      else setNotice('Google Maps/Places results loaded for the selected area. Select the businesses you want to save.');
     } catch (e: any) {
       setNotice(e?.message || 'Live search failed.');
+    } finally {
+      setSearching(false);
+    }
+  };
+
+
+  const loadMoreResults = async () => {
+    if (!nextPageToken || searching) return;
+    setSearching(true);
+    setNotice('');
+    try {
+      const { data, error } = await supabase.functions.invoke('engagex-lead-search', {
+        body: {
+          query: query.trim(),
+          category: category.trim(),
+          area: area.trim(),
+          city: location.trim(),
+          limit: 20,
+          pageToken: nextPageToken
+        }
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      setLiveResults(prev => {
+        const seen = new Set(prev.map((r:any) => r.external_id));
+        return [...prev, ...(data?.results || []).filter((r:any) => !seen.has(r.external_id))];
+      });
+      setNextPageToken(data?.nextPageToken || null);
+      setNotice((data?.results || []).length ? 'More Google Maps businesses loaded.' : 'No more results available for this search.');
+    } catch (e:any) {
+      setNotice(e?.message || 'Could not load more results.');
     } finally {
       setSearching(false);
     }
@@ -119,7 +159,7 @@ export const DataExtractorView: React.FC = () => {
       source: r.source === 'google_places' || r.source === 'google_web' ? 'google_maps' : 'web_search',
       business_name: r.business_name,
       category: r.category || category.trim() || null,
-      location: location.trim() || null,
+      location: [area.trim(), location.trim()].filter(Boolean).join(', ') || null,
       address: r.address || null,
       phone: r.phone || null,
       email: null,
@@ -250,7 +290,7 @@ export const DataExtractorView: React.FC = () => {
       </section>
 
       <section style={{background:'#fff',border:'1px solid #dfe9ed',borderRadius:14,padding:16,marginBottom:14}}>
-        <div style={{display:'grid',gridTemplateColumns:'2fr 1fr 1fr 1fr auto auto auto',gap:8,alignItems:'center'}}>
+        <div style={{display:'grid',gridTemplateColumns:'1.5fr 1fr 1fr 1fr 1fr auto auto auto',gap:8,alignItems:'center'}}>
           <div style={{position:'relative'}}>
             <Search size={15} style={{position:'absolute',left:11,top:11,color:'#94a3b8'}}/>
             <input value={query} onChange={e=>setQuery(e.target.value)} placeholder="Search company, phone, email, website..." style={{width:'100%',padding:'10px 10px 10px 34px',border:'1px solid #dbe7ee',borderRadius:9}}/>
@@ -263,8 +303,9 @@ export const DataExtractorView: React.FC = () => {
             <option value="csv">CSV Import</option>
             <option value="manual">Manual</option>
           </select>
-          <input value={category} onChange={e=>setCategory(e.target.value)} placeholder="Category" style={{padding:10,border:'1px solid #dbe7ee',borderRadius:9}}/>
-          <input value={location} onChange={e=>setLocation(e.target.value)} placeholder="City / Location" style={{padding:10,border:'1px solid #dbe7ee',borderRadius:9}}/>
+          <input value={category} onChange={e=>setCategory(e.target.value)} placeholder="Business / Category (optional)" style={{padding:10,border:'1px solid #dbe7ee',borderRadius:9}}/>
+          <input value={area} onChange={e=>setArea(e.target.value)} placeholder="Area / Locality e.g. Mandideep" style={{padding:10,border:'1px solid #dbe7ee',borderRadius:9}}/>
+          <input value={location} onChange={e=>setLocation(e.target.value)} placeholder="City e.g. Bhopal" style={{padding:10,border:'1px solid #dbe7ee',borderRadius:9}}/>
           <button onClick={runLiveSearch} disabled={searching} className="primaryBtn small"><Search size={14}/> {searching ? 'Searching…' : 'Search Live'}</button>
           <button onClick={()=>setShowAdd(v=>!v)} className="primaryBtn small"><Plus size={14}/> Add</button>
           <button onClick={exportCsv} style={{padding:'9px 10px',border:'1px solid #dbe7ee',borderRadius:9,background:'#fff',cursor:'pointer',fontWeight:800,fontSize:10,display:'inline-flex',gap:5,alignItems:'center'}}><Download size={13}/> Export</button>
@@ -276,9 +317,12 @@ export const DataExtractorView: React.FC = () => {
           <div style={{padding:'12px 14px',borderBottom:'1px solid #edf2f4',display:'flex',justifyContent:'space-between',alignItems:'center',gap:10,flexWrap:'wrap'}}>
             <div>
               <b style={{fontSize:11}}>Live Google Maps Results</b>
-              <small style={{display:'block',fontSize:8,color:'#94a3b8',marginTop:2}}>{liveResults.length} Google Places businesses found · select the records you want to save into EngageX Lead Intelligence</small>
+              <small style={{display:'block',fontSize:8,color:'#94a3b8',marginTop:2}}>{liveResults.length} Google Maps businesses found for {[area, location].filter(Boolean).join(', ') || 'your search'} · select records to save</small>
             </div>
-            <button onClick={saveLiveProspects} className="primaryBtn small">Save Selected</button>
+            <div style={{display:'flex',gap:8}}>
+              {nextPageToken && <button onClick={loadMoreResults} disabled={searching} className="primaryBtn small" style={{background:'#fff',color:'#0f7490',border:'1px solid #bfe4ee'}}>{searching ? 'Loading…' : 'Load More'}</button>}
+              <button onClick={saveLiveProspects} className="primaryBtn small">Save Selected</button>
+            </div>
           </div>
           <div style={{overflowX:'auto'}}>
             <table className="dashTable" style={{marginTop:0}}>
