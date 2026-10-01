@@ -23,11 +23,11 @@ import { CommercialShell } from './CommercialShell';
 import { useApp } from '../context/AppContext';
 import { Contact } from '../types';
 
-const WHATSAPP_GROUP_LINK = 'https://chat.whatsapp.com/KdCB01biJWTH6ihxLjFO8O';
-const buildGroupInviteMessage = (name: string) => `Namaste ${name || 'Ji'},\n\nAKBS Poultry Farming Private Limited ki taraf se aapko hamare official WhatsApp group me join hone ka invite bheja ja raha hai.\n\nGroup join karne ke liye neeche diye gaye link par click karein:\n${WHATSAPP_GROUP_LINK}\n\nDhanyavaad.\nAKBS Poultry Farming Private Limited`;
+const DEFAULT_WHATSAPP_GROUP_LINK = 'https://chat.whatsapp.com/KdCB01biJWTH6ihxLjFO8O';
+const DEFAULT_INVITE_MESSAGE = `Namaste {{first_name}} ji,\n\nAKBS Poultry Farming Private Limited se aapko hamare official WhatsApp updates group me join karne ka invite hai.\n\n*Join Group:* {{group_link}}\n\nYahan aapko project updates, process information aur important notices milenge.\n\nDhanyavaad,\n*AKBS Poultry Farming Private Limited*`;
 
 export const ContactsView: React.FC = () => {
-  const { contacts, addContact, updateContact, deleteContact, bulkDeleteContacts, importContacts } = useApp();
+  const { contacts, addContact, updateContact, deleteContact, bulkDeleteContacts, importContacts, workspaceSettings } = useApp();
 
   const [search, setSearch] = useState('');
   const [selectedTag, setSelectedTag] = useState<string>('all');
@@ -96,6 +96,16 @@ export const ContactsView: React.FC = () => {
   });
 
   // Form state
+  const groupInviteLink = workspaceSettings?.whatsappGroupLink || DEFAULT_WHATSAPP_GROUP_LINK;
+  const groupInviteTemplate = workspaceSettings?.whatsappInviteMessage || DEFAULT_INVITE_MESSAGE;
+  const buildGroupInviteMessage = (name: string) => {
+    const firstName = (name || 'Ji').trim().split(/\s+/)[0] || 'Ji';
+    return groupInviteTemplate
+      .replaceAll('{{first_name}}', firstName)
+      .replaceAll('{{group_link}}', groupInviteLink)
+      .trim();
+  };
+
   const [form, setForm] = useState({
     name: '',
     first_name: '',
