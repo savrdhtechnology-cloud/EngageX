@@ -30,7 +30,7 @@ import { AppNotification } from '../types';
 const menuItems = [
   { id: 'dashboard', name: 'Dashboard', icon: LayoutDashboard },
   { id: 'clients', name: 'Clients', icon: Building2 },
-  { id: 'data-extractor', name: 'Data Extractor', icon: DatabaseZap },
+  { id: 'data-extractor', name: 'EngageX Lead Intelligence', icon: DatabaseZap },
   { id: 'contacts', name: 'Contacts', icon: ContactRound },
   { id: 'campaigns', name: 'Campaigns', icon: Megaphone },
   { id: 'messages', name: 'Live Inbox', icon: MessageCircle, badge: 'Live' },
