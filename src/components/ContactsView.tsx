@@ -958,7 +958,7 @@ export const ContactsView: React.FC = () => {
         </div>
       )}
 
-      {outreach && outreach.workspaceId===activeWorkspace?.id && <ContactOutreach key={outreach.ids.join(',')+outreach.channel} contacts={contacts.filter(c=>outreach.ids.includes(c.id))} initialChannel={outreach.channel} onClose={()=>setOutreach(null)}/>}
+      {outreach && outreach.workspaceId===activeWorkspace?.id && <ContactOutreach key={outreach.ids.join(',')+outreach.channel} contacts={contacts.filter(c=>outreach.ids.includes(c.id))} initialChannel={outreach.channel} onClose={()=>setOutreach(null)} onEditContact={contact=>{setOutreach(null);handleOpenEdit(contact);}}/>}
 
       {/* Add / Edit Contact Modal */}
       {isModalOpen && (

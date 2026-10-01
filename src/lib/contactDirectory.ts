@@ -63,11 +63,14 @@ export function contactDirectory(contacts: Contact[], prospects: BusinessProspec
   });
 }
 
-export function channelReady(contact: Contact, channel: ChannelType) {
+export function manualChannelReady(contact: Contact, channel: ChannelType) {
   if (contact.status !== 'active') return false;
-  return channel === 'email' ? contact.email_consent && validEmail(contact.email)
-    : channel === 'sms' ? contact.sms_consent && validPhone(contact.mobile)
-    : contact.whatsapp_consent && validPhone(contact.mobile);
+  return channel === 'email' ? validEmail(contact.email) : validPhone(contact.mobile);
+}
+
+export function channelReady(contact: Contact, channel: ChannelType) {
+  return manualChannelReady(contact, channel) && (channel === 'email' ? contact.email_consent
+    : channel === 'sms' ? contact.sms_consent : contact.whatsapp_consent);
 }
 
 export function personalize(text: string, contact: Contact, groupLink = '') {
@@ -77,11 +80,19 @@ export function personalize(text: string, contact: Contact, groupLink = '') {
 }
 
 export function composeUrl(contact: Contact, channel: ChannelType, body: string, subject = '') {
-  if (!channelReady(contact, channel)) throw new Error('This contact needs an active address and consent for the selected channel.');
+  if (!manualChannelReady(contact, channel)) throw new Error('This contact needs an active status and a valid address for the selected channel.');
   const message = encodeURIComponent(personalize(body, contact));
   if (channel === 'email') return `mailto:${encodeURIComponent(contact.email)}?subject=${encodeURIComponent(personalize(subject,contact))}&body=${message}`;
   if (channel === 'sms') return `sms:+${contactPhone(contact.mobile)}?body=${message}`;
   return `https://wa.me/${contactPhone(contact.mobile)}?text=${message}`;
+}
+
+export function gmailComposeUrl(contact: Contact, body: string, subject = '') {
+  if (!manualChannelReady(contact, 'email')) throw new Error('This contact needs an active status and a valid email address.');
+  const url = new URL('https://mail.google.com/mail/');
+  url.search = new URLSearchParams({ view: 'cm', fs: '1', to: contactEmail(contact.email),
+    su: personalize(subject, contact), body: personalize(body, contact) }).toString();
+  return url.href;
 }
 
 export const selectedContactAudience = (ids: string[]) => 'Contacts: ' + JSON.stringify([...new Set(ids)]);
