@@ -78,6 +78,7 @@ export interface AppContextType {
   // Templates
   templates: Template[];
   addTemplate: (data: Omit<Template, 'id' | 'created_at'>) => void | Promise<void>;
+  updateTemplate: (id: string, data: Partial<Template>) => void | Promise<void>;
   deleteTemplate: (id: string) => void | Promise<void>;
 
   // Automations
@@ -586,6 +587,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     addAuditLog('TEMPLATE_CREATED', 'Template', `Created ${data.channel.toUpperCase()} template: ${data.name}`, newTpl.id);
   };
 
+  const updateTemplate = (id: string, data: Partial<Template>) => {
+    setTemplates((prev) => prev.map((t) => t.id === id ? { ...t, ...data } : t));
+    addAuditLog('TEMPLATE_UPDATED', 'Template', `Updated template: ${id}`, id);
+  };
+
   const deleteTemplate = (id: string) => {
     const found = templates.find((t) => t.id === id);
     setTemplates((prev) => prev.filter((t) => t.id !== id));
@@ -777,6 +783,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         simulateCustomerReply,
         templates,
         addTemplate,
+        updateTemplate,
         deleteTemplate,
         automations,
         toggleAutomation,
