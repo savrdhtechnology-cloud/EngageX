@@ -192,15 +192,41 @@ export const DataExtractorView: React.FC = () => {
       status: 'new',
       outreach_eligibility: 'review_required'
     }));
-    const { error } = await supabase.from('engagex_prospects').upsert(payload, {
-      onConflict: 'workspace_id,source,business_name,phone,website',
-      ignoreDuplicates: true
-    });
-    if (error) {
-      setNotice(error.message);
+    const { data: existing, error: existingError } = await supabase
+      .from('engagex_prospects')
+      .select('source,business_name,phone,website')
+      .eq('workspace_id', activeWorkspace.id);
+
+    if (existingError) {
+      setNotice(existingError.message);
       return;
     }
-    setNotice(selected.length + ' prospect(s) saved for review.');
+
+    const norm = (v:any) => String(v || '').trim().toLowerCase();
+    const keyOf = (r:any) => [norm(r.source), norm(r.business_name), norm(r.phone), norm(r.website)].join('|');
+    const existingKeys = new Set((existing || []).map(keyOf));
+    const fresh = payload.filter((r:any) => !existingKeys.has(keyOf(r)));
+
+    if (!fresh.length) {
+      setNotice('All selected businesses are already saved in your Prospect Database.');
+      setSelectedLive({});
+      return;
+    }
+
+    const { error } = await supabase.from('engagex_prospects').insert(fresh);
+    if (error) {
+      setNotice(error.code === '23505'
+        ? 'Some selected businesses were already saved. Please retry once.'
+        : error.message);
+      return;
+    }
+
+    const skipped = selected.length - fresh.length;
+    setNotice(
+      fresh.length + ' business' + (fresh.length === 1 ? '' : 'es') +
+      ' saved permanently to Prospect Database' +
+      (skipped ? ' · ' + skipped + ' duplicate' + (skipped === 1 ? '' : 's') + ' skipped.' : '.')
+    );
     setSelectedLive({});
     await load();
   };
