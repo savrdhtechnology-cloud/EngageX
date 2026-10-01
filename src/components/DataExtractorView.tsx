@@ -280,10 +280,65 @@ export const DataExtractorView: React.FC = () => {
       return;
     }
 
+    const contactable = fresh.filter((r:any) => String(r.phone || '').trim() || String(r.email || '').trim());
+    if (contactable.length) {
+      const existingContactsRes = await supabase
+        .from('engagex_contacts')
+        .select('mobile,email')
+        .eq('workspace_id', activeWorkspace.id);
+
+      if (!existingContactsRes.error) {
+        const normPhone = (v:any) => String(v || '').replace(/[^0-9]/g, '');
+        const normEmail = (v:any) => String(v || '').trim().toLowerCase();
+        const existingPhones = new Set((existingContactsRes.data || []).map((x:any) => normPhone(x.mobile)).filter(Boolean));
+        const existingEmails = new Set((existingContactsRes.data || []).map((x:any) => normEmail(x.email)).filter(Boolean));
+
+        const contactPayload = contactable
+          .filter((r:any) => {
+            const p = normPhone(r.phone);
+            const e = normEmail(r.email);
+            return (!p || !existingPhones.has(p)) && (!e || !existingEmails.has(e));
+          })
+          .map((r:any) => ({
+            workspace_id: activeWorkspace.id,
+            name: r.business_name,
+            first_name: String(r.business_name || '').trim().split(/\s+/)[0] || r.business_name,
+            last_name: '',
+            mobile: r.phone || '',
+            email: r.email || '',
+            company: r.business_name,
+            job_title: r.business_type || r.category || 'Business Prospect',
+            city: r.location || '',
+            state: '',
+            country: 'India',
+            tags: ['lead-intelligence', String(r.business_type || r.category || 'prospect').toLowerCase()],
+            notes: [
+              'Imported from EngageX Lead Intelligence',
+              r.address ? 'Address: ' + r.address : '',
+              r.website ? 'Website: ' + r.website : '',
+              r.source_url ? 'Source: ' + r.source_url : '',
+              r.lead_score != null ? 'Lead Score: ' + r.lead_score + '%' : '',
+              r.recommended_product ? 'Recommended Product: ' + r.recommended_product : ''
+            ].filter(Boolean).join('\n'),
+            status: 'active',
+            whatsapp_consent: false,
+            sms_consent: false,
+            email_consent: false
+          }));
+
+        if (contactPayload.length) {
+          const { error: contactError } = await supabase.from('engagex_contacts').insert(contactPayload);
+          if (contactError && contactError.code !== '23505') {
+            setNotice('Prospects saved, but some contacts could not be added: ' + contactError.message);
+          }
+        }
+      }
+    }
+
     const skipped = selected.length - fresh.length;
     setNotice(
       fresh.length + ' business' + (fresh.length === 1 ? '' : 'es') +
-      ' saved permanently to Prospect Database' +
+      ' saved. Contactable records were also added to Contact Management' +
       (skipped ? ' · ' + skipped + ' duplicate' + (skipped === 1 ? '' : 's') + ' skipped.' : '.')
     );
     setSelectedLive({});
