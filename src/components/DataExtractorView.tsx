@@ -17,6 +17,12 @@ type Prospect = {
   website: string | null;
   rating: number | null;
   source_url: string | null;
+  business_type?: string | null;
+  match_score?: number | null;
+  lead_score?: number | null;
+  recommended_product?: string | null;
+  source_domain?: string | null;
+  enrichment_status?: string | null;
   status: 'new' | 'reviewed' | 'contacted' | 'qualified' | 'converted' | 'do_not_contact';
   outreach_eligibility: 'review_required' | 'allowed' | 'do_not_contact';
   notes: string | null;
@@ -25,6 +31,7 @@ type Prospect = {
 
 const sourceLabel: Record<Prospect['source'], string> = {
   google_maps: 'Google Maps',
+  web_search: 'Web Intelligence',
   indiamart: 'IndiaMART',
   justdial: 'Justdial',
   csv: 'CSV Import',
@@ -119,6 +126,12 @@ export const DataExtractorView: React.FC = () => {
       website: r.website || null,
       rating: r.rating,
       source_url: r.source_url || null,
+      business_type: r.business_type || null,
+      match_score: r.match_score ?? null,
+      lead_score: r.lead_score ?? null,
+      recommended_product: r.recommended_product || null,
+      source_domain: r.source_domain || null,
+      enrichment_status: r.enrichment_status || 'basic',
       status: 'new',
       outreach_eligibility: 'review_required'
     }));
@@ -269,19 +282,21 @@ export const DataExtractorView: React.FC = () => {
           </div>
           <div style={{overflowX:'auto'}}>
             <table className="dashTable" style={{marginTop:0}}>
-              <thead><tr><th></th><th>Business</th><th>Category</th><th>Address</th><th>Phone</th><th>Rating</th><th>Website</th></tr></thead>
+              <thead><tr><th></th><th>Business</th><th>Business Type</th><th>Phone</th><th>Email</th><th>Source</th><th>Match</th><th>Lead Score</th><th>Recommended Product</th></tr></thead>
               <tbody>
                 {liveResults.map((r:any,i:number)=>{
                   const key=r.external_id || String(i);
                   return (
                     <tr key={key}>
                       <td><input type="checkbox" checked={!!selectedLive[key]} onChange={e=>setSelectedLive(prev=>({...prev,[key]:e.target.checked}))}/></td>
-                      <td><b>{r.business_name}</b></td>
-                      <td>{r.category || '—'}</td>
-                      <td>{r.address || '—'}</td>
+                      <td><b>{r.business_name}</b>{r.website && <small style={{display:'block',fontSize:8,color:'#94a3b8'}}>{r.source_domain || r.website}</small>}</td>
+                      <td>{r.business_type || r.category || '—'}</td>
                       <td>{r.phone || '—'}</td>
-                      <td>{r.rating ?? '—'}</td>
-                      <td>{r.website ? <a href={r.website} target="_blank" rel="noreferrer" style={{color:'#0891b2',fontWeight:800}}>Open</a> : '—'}</td>
+                      <td>{r.email || '—'}</td>
+                      <td>{r.source_domain || 'Web'}</td>
+                      <td><span className="dashBadge">{r.match_score ?? '—'}{r.match_score != null ? '%' : ''}</span></td>
+                      <td><span className="dashBadge" style={{background:(r.lead_score||0)>=80?'#ecfdf5':(r.lead_score||0)>=60?'#fff7ed':'#f8fafc',color:(r.lead_score||0)>=80?'#047857':(r.lead_score||0)>=60?'#c2410c':'#64748b'}}>{r.lead_score ?? '—'}{r.lead_score != null ? '%' : ''}</span></td>
+                      <td><b style={{fontSize:9,color:'#0369a1'}}>{r.recommended_product || 'EngageX'}</b></td>
                     </tr>
                   );
                 })}
@@ -321,16 +336,18 @@ export const DataExtractorView: React.FC = () => {
         </div>
         <div style={{overflowX:'auto'}}>
           <table className="dashTable" style={{marginTop:0}}>
-            <thead><tr><th>Business</th><th>Source</th><th>Category</th><th>Location</th><th>Phone</th><th>Email</th><th>Status</th><th>Outreach</th></tr></thead>
+            <thead><tr><th>Business</th><th>Business Type</th><th>Source</th><th>Location</th><th>Phone</th><th>Email</th><th>Lead Score</th><th>Recommended Product</th><th>Status</th><th>Outreach</th></tr></thead>
             <tbody>
               {loading ? <tr><td colSpan={8}>Loading prospects…</td></tr> : filtered.length===0 ? <tr><td colSpan={8}>No prospects found. Add manually or connect an official data source.</td></tr> : filtered.map(r=>(
                 <tr key={r.id}>
                   <td><b>{r.business_name}</b>{r.website && <small style={{display:'block',fontSize:8,color:'#94a3b8'}}>{r.website}</small>}</td>
-                  <td>{sourceLabel[r.source]}</td>
-                  <td>{r.category || '—'}</td>
+                  <td>{r.business_type || r.category || '—'}</td>
+                  <td>{sourceLabel[r.source] || 'Web Search'}</td>
                   <td>{r.location || '—'}</td>
                   <td>{r.phone || '—'}</td>
                   <td>{r.email || '—'}</td>
+                  <td><span className="dashBadge" style={{background:(r.lead_score||0)>=80?'#ecfdf5':(r.lead_score||0)>=60?'#fff7ed':'#f8fafc',color:(r.lead_score||0)>=80?'#047857':(r.lead_score||0)>=60?'#c2410c':'#64748b'}}>{r.lead_score ?? '—'}{r.lead_score != null ? '%' : ''}</span></td>
+                  <td><b style={{fontSize:9,color:'#0369a1'}}>{r.recommended_product || '—'}</b></td>
                   <td><span className="dashBadge">{r.status}</span></td>
                   <td><span className="dashBadge" style={{background:r.outreach_eligibility==='allowed'?'#ecfdf5':r.outreach_eligibility==='do_not_contact'?'#fef2f2':'#fff7ed',color:r.outreach_eligibility==='allowed'?'#047857':r.outreach_eligibility==='do_not_contact'?'#b91c1c':'#c2410c'}}>{r.outreach_eligibility.replace('_',' ')}</span></td>
                 </tr>
