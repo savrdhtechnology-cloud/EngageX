@@ -188,7 +188,7 @@ export const LiveAppProvider: React.FC<{children: React.ReactNode}> = ({ childre
           if(missing.length) throw new Error('Missing template values: '+missing.join(', '));
           const requestId=crypto.randomUUID();
           const {data,error}=await supabase.functions.invoke('engagex-send-email',{
-            body:{workspace_id:requireWorkspace(),contact_id:contact.id,subject,text:body,request_id:requestId}
+            body:{workspace_id:requireWorkspace(),contact_id:contact.id,subject,text:body,request_id:requestId,campaign_id:id}
           });
           if(error || !data?.ok) throw new Error(data?.error||error?.message||'Provider rejected email');
           sent++;
