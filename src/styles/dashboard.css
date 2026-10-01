@@ -16,3 +16,44 @@
 .quickFive{grid-template-columns:repeat(5,1fr)}.quickFive article>svg{width:19px;color:#0891b2}
 @media(max-width:1200px){.quickFive{grid-template-columns:repeat(3,1fr)}.crmMetrics{grid-template-columns:repeat(2,1fr)}}
 @media(max-width:900px){.dashboardDual{grid-template-columns:1fr}.quickFive{grid-template-columns:1fr}.miniChart{height:170px}}
+
+/* Global CRM header/layout fix: keep every module fully visible from the top */
+.crmMain{
+  padding-top:14px;
+  min-width:0;
+  overflow-x:hidden;
+}
+.crmMain header{
+  height:auto;
+  min-height:112px;
+  padding:12px 0 14px;
+  align-items:flex-start;
+  box-sizing:border-box;
+}
+.crmMain header>div:first-child{
+  min-width:0;
+  padding-top:2px;
+}
+.crmMain header h1{
+  line-height:1.15;
+}
+.pageSub{
+  line-height:1.45;
+  max-width:760px;
+}
+.crmHeaderActions{
+  padding-top:8px;
+  flex-shrink:0;
+}
+@media(max-width:1100px){
+  .crmMain{padding:12px 18px 35px}
+  .crmMain header{min-height:104px}
+}
+@media(max-width:900px){
+  .crmMain{padding-top:10px}
+  .crmMain header{
+    min-height:auto;
+    padding:10px 0 14px;
+    gap:12px;
+  }
+}
