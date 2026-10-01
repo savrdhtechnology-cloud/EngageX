@@ -23,6 +23,7 @@ export const LiveAppProvider: React.FC<{children: React.ReactNode}> = ({ childre
   const [loading, setLoading] = useState(true);
   const generation = useRef(0);
   const uid = useRef<string | null>(null);
+  const workspaceId = useRef<string | null>(null);
   const reportError = (e: unknown) => setError(e instanceof Error ? e.message : String((e as any)?.message || e));
 
   const fetchRows = async (table: string, wid: string) => {
@@ -38,7 +39,7 @@ export const LiveAppProvider: React.FC<{children: React.ReactNode}> = ({ childre
   const loadWorkspace = async (session: Session | null, navigate = false, slug = workspaceSlug) => {
     const ticket = ++generation.current;
     const nextUid = session?.user.id || null;
-    if (uid.current !== nextUid) { setRecords(blank()); setWorkspace(null); setBilling(emptyBilling); setUserSession(signedOut); }
+    if (uid.current !== nextUid) { workspaceId.current=null; setRecords(blank()); setWorkspace(null); setBilling(emptyBilling); setUserSession(signedOut); }
     uid.current = nextUid;
     if (!session) { setLoading(false); return; }
     setLoading(true);
@@ -56,7 +57,7 @@ export const LiveAppProvider: React.FC<{children: React.ReactNode}> = ({ childre
       const member = nextRecords.members.find(m => m.user_id === session.user.id && m.status === 'active');
       const role = w.owner_id === session.user.id ? 'Owner' : member?.role;
       if (!role) throw new Error('Your EngageX membership is not active.');
-      setWorkspace(w); setRecords(nextRecords); setBilling(bill.data); setError('');
+      workspaceId.current=w.id; setWorkspace(w); setRecords(nextRecords); setBilling(bill.data); setError('');
       setUserSession({ email: session.user.email || '', name: member?.name || session.user.email || 'User', role, avatar: member?.avatar || 'U', isAuthenticated: true });
       if (navigate) setCurrentView('app');
     } catch (e) {
@@ -70,7 +71,7 @@ export const LiveAppProvider: React.FC<{children: React.ReactNode}> = ({ childre
     supabase.auth.getSession().then(({data,error}) => { if (!active) return; if(error) {reportError(error);setLoading(false);} else void loadWorkspace(data.session, !!data.session).catch(() => {}); });
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       // Do not make awaited Supabase calls inside the auth callback lock.
-      if (event === 'SIGNED_OUT') { generation.current++; uid.current=null; setRecords(blank()); setWorkspace(null); setBilling(emptyBilling); setUserSession(signedOut); setCurrentView('login'); setLoading(false); }
+      if (event === 'SIGNED_OUT') { generation.current++; uid.current=null; workspaceId.current=null; setRecords(blank()); setWorkspace(null); setBilling(emptyBilling); setUserSession(signedOut); setCurrentView('login'); setLoading(false); }
       else if (event === 'SIGNED_IN' && uid.current !== session?.user.id) setTimeout(() => { if (active) void loadWorkspace(session,true).catch(() => {}); },0);
     });
     return () => { active=false; generation.current++; subscription.unsubscribe(); };
@@ -80,7 +81,7 @@ export const LiveAppProvider: React.FC<{children: React.ReactNode}> = ({ childre
   const refresh = async (table: typeof tables[number]) => {
     const wid = requireWorkspace(), ticket = generation.current;
     const rows = await fetchRows(table,wid);
-    if (ticket === generation.current) setRecords(prev => ({...prev,[table]:rows}));
+    if (ticket === generation.current && wid===workspaceId.current) setRecords(prev => ({...prev,[table]:rows}));
   };
   const run = async <T,>(action: () => Promise<T>): Promise<T> => { try {setError('');return await action();} catch(e) {reportError(e);throw e;} };
   const insert = async (table: typeof tables[number], values: any) => run(async () => {
@@ -130,6 +131,7 @@ export const LiveAppProvider: React.FC<{children: React.ReactNode}> = ({ childre
     },
     logout: async () => { const {error}=await supabase.auth.signOut({scope:'local'}); if(error) reportError(error); },
     contacts:records.contacts, campaigns:records.campaigns, messages:records.messages, templates:records.templates,
+    refreshContacts:()=>refresh('contacts'),
     automations:records.automations, integrations:records.integrations, team:records.members, billing, auditLogs:records.audit_logs,
     notifications:records.notifications, unreadNotificationsCount:records.notifications.filter(n=>!n.read).length,
     markNotificationRead:id=>safely(()=>update('notifications',id,{read:true})),
@@ -154,7 +156,17 @@ export const LiveAppProvider: React.FC<{children: React.ReactNode}> = ({ childre
     deleteCampaign:id=>safely(()=>remove('campaigns',[id])),
     queueCampaign:()=>reportError(new Error('Campaign saved as a draft. Configure a messaging provider and dispatcher before launch.')),
     simulateCampaignRun:()=>reportError(new Error('Simulations are disabled for the live database.')),
-    sendMessage:()=>unavailable('Messaging provider'),
+    sendMessage:payload=>run(async()=>{
+      if(payload.channel!=='email') unavailable('SMS / WhatsApp API provider');
+      const {data,error}=await supabase.functions.invoke('engagex-send-email',{body:{workspace_id:requireWorkspace(),contact_id:payload.contact_id,subject:payload.subject,text:payload.body,request_id:payload.request_id||crypto.randomUUID()}});
+      if(error) {
+        let message=error.message;
+        if(error.context instanceof Response) { try { message=(await error.context.json()).error||message; } catch {} }
+        throw new Error(message);
+      }
+      if(!data?.ok||!data.id) throw new Error(data?.error||'Email was not accepted by the provider.');
+      await refresh('messages'); await refresh('audit_logs');
+    }),
     simulateCustomerReply:()=>reportError(new Error('Live replies must arrive through a verified provider webhook.')),
     addTemplate:async data=>{await insert('templates',{...data,status:'draft'});},
     updateTemplate:(id,data)=>update('templates',id,data),

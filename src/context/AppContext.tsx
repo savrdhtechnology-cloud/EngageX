@@ -56,6 +56,7 @@ export interface AppContextType {
 
   // Contacts
   contacts: Contact[];
+  refreshContacts?: () => Promise<void>;
   addContact: (data: Omit<Contact, 'id' | 'created_at'>) => Contact | Promise<Contact>;
   updateContact: (id: string, data: Partial<Contact>) => void | Promise<void>;
   deleteContact: (id: string) => void | Promise<void>;
@@ -72,7 +73,7 @@ export interface AppContextType {
 
   // Messages
   messages: Message[];
-  sendMessage: (payload: { contact_id: string; channel: ChannelType; body: string; subject?: string }) => void | Promise<void>;
+  sendMessage: (payload: { contact_id: string; channel: ChannelType; body: string; subject?: string; request_id?: string }) => void | Promise<void>;
   simulateCustomerReply: (contact_id: string, text?: string) => void | Promise<void>;
 
   // Templates

@@ -4,6 +4,7 @@ import { CommercialShell } from './CommercialShell';
 import * as XLSX from 'xlsx';
 import { supabase } from '../lib/supabase';
 import { useApp } from '../context/AppContext';
+import { contactPhone, contactEmail, planProspectImport, prospectToContact } from '../lib/contactDirectory';
 
 type SearchHistory = {
   id: string;
@@ -53,7 +54,7 @@ const sourceLabel: Record<Prospect['source'], string> = {
 };
 
 export const DataExtractorView: React.FC = () => {
-  const { activeWorkspace, contacts } = useApp();
+  const { activeWorkspace, contacts, addContact, importContacts } = useApp();
   const [rows, setRows] = useState<Prospect[]>([]);
   const [history, setHistory] = useState<SearchHistory[]>([]);
   const [lastHistoryId, setLastHistoryId] = useState<string | null>(null);
@@ -68,6 +69,7 @@ export const DataExtractorView: React.FC = () => {
   const [showAdd, setShowAdd] = useState(false);
   const [liveResults, setLiveResults] = useState<any[]>([]);
   const [searching, setSearching] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [selectedLive, setSelectedLive] = useState<Record<string, boolean>>({});
   const [addedCrmKeys, setAddedCrmKeys] = useState<Set<string>>(new Set());
   const [resultView, setResultView] = useState<'list' | 'grid'>('list');
@@ -87,7 +89,6 @@ export const DataExtractorView: React.FC = () => {
   const load = async () => {
     if (!activeWorkspace?.id) return;
     setLoading(true);
-    setNotice('');
     const { data, error } = await supabase
       .from('engagex_prospects')
       .select('*')
@@ -122,6 +123,7 @@ export const DataExtractorView: React.FC = () => {
     setLiveResults([]);
     setSelectedLive({});
     setNextPageToken(null);
+    setLastHistoryId(null);
     try {
       const { data, error } = await supabase.functions.invoke('engagex-lead-search', {
         body: {
@@ -210,8 +212,8 @@ export const DataExtractorView: React.FC = () => {
 
 
 
-  const normPhone = (v:any) => String(v || '').replace(/[^0-9]/g, '');
-  const normEmail = (v:any) => String(v || '').trim().toLowerCase();
+  const normPhone = contactPhone;
+  const normEmail = contactEmail;
   const crmKeyFor = (r:any) => normPhone(r.phone) || normEmail(r.email) || '';
 
   const crmPhoneSet = useMemo(
@@ -241,42 +243,12 @@ export const DataExtractorView: React.FC = () => {
       return;
     }
 
-    const cityText = [area.trim(), location.trim()].filter(Boolean).join(', ');
-    const payload = {
-      workspace_id: activeWorkspace.id,
-      name: r.business_name,
-      first_name: String(r.business_name || '').trim().split(/\s+/)[0] || r.business_name,
-      last_name: '',
-      mobile: r.phone || '',
-      email: r.email || '',
-      company: r.business_name,
-      job_title: r.business_type || r.category || 'Business Prospect',
-      city: cityText,
-      state: '',
-      country: 'India',
-      tags: ['lead-intelligence', String(r.business_type || r.category || 'prospect').toLowerCase()],
-      notes: [
-        'Imported from EngageX Lead Intelligence',
-        r.address ? 'Address: ' + r.address : '',
-        r.website ? 'Website: ' + r.website : '',
-        r.source_url ? 'Source: ' + r.source_url : '',
-        r.lead_score != null ? 'Lead Score: ' + r.lead_score + '%' : '',
-        r.recommended_product ? 'Recommended Product: ' + r.recommended_product : ''
-      ].filter(Boolean).join('\n'),
-      status: 'active',
-      whatsapp_consent: false,
-      sms_consent: false,
-      email_consent: false
-    };
-
-    const { error } = await supabase.from('engagex_contacts').insert(payload);
-    if (error && error.code !== '23505') {
-      setNotice(error.message);
-      return;
-    }
-    const key = crmKeyFor(r);
-    if (key) setAddedCrmKeys(prev => new Set(prev).add(key));
-    setNotice(r.business_name + ' added to Contact Management.');
+    try {
+      await addContact(prospectToContact({...r,location:[area.trim(),location.trim()].filter(Boolean).join(', ')}));
+      const key = crmKeyFor(r);
+      if (key) setAddedCrmKeys(prev => new Set(prev).add(key));
+      setNotice(r.business_name + ' added to Contact Management.');
+    } catch (e) { setNotice((e as Error).message || 'Could not save this contact.'); }
   };
 
   const allLiveSelected = liveResults.length > 0 && liveResults.every((r:any,i:number) =>
@@ -296,135 +268,46 @@ export const DataExtractorView: React.FC = () => {
   };
 
   const saveLiveProspects = async () => {
-    if (!activeWorkspace?.id) return;
-    const selected = liveResults.filter((r, i) => selectedLive[r.external_id || String(i)]);
-    if (!selected.length) {
-      setNotice('Select at least one live result first.');
-      return;
-    }
-    setNotice('');
-    const payload = selected.map((r: any) => ({
-      workspace_id: activeWorkspace.id,
-      source: r.source === 'google_places' || r.source === 'google_web' ? 'google_maps' : 'web_search',
-      business_name: r.business_name,
-      category: r.category || category.trim() || null,
-      location: [area.trim(), location.trim()].filter(Boolean).join(', ') || null,
-      address: r.address || null,
-      phone: r.phone || null,
-      email: null,
-      website: r.website || null,
-      rating: r.rating,
-      source_url: r.source_url || null,
-      business_type: r.business_type || null,
-      match_score: r.match_score ?? null,
-      lead_score: r.lead_score ?? null,
-      recommended_product: r.recommended_product || null,
-      source_domain: r.source_domain || null,
-      enrichment_status: r.enrichment_status || 'basic',
-      status: 'new',
-      outreach_eligibility: 'review_required'
-    }));
-    const { data: existing, error: existingError } = await supabase
-      .from('engagex_prospects')
-      .select('source,business_name,phone,website')
-      .eq('workspace_id', activeWorkspace.id);
-
-    if (existingError) {
-      setNotice(existingError.message);
-      return;
-    }
-
-    const norm = (v:any) => String(v || '').trim().toLowerCase();
-    const keyOf = (r:any) => [norm(r.source), norm(r.business_name), norm(r.phone), norm(r.website)].join('|');
-    const existingKeys = new Set((existing || []).map(keyOf));
-    const fresh = payload.filter((r:any) => !existingKeys.has(keyOf(r)));
-
-    if (fresh.length) {
-      const { error } = await supabase.from('engagex_prospects').insert(fresh);
-      if (error && error.code !== '23505') {
-        setNotice(error.message);
-        return;
+    if (!activeWorkspace?.id || saving) return;
+    const selected = liveResults.filter((r,i) => selectedLive[r.external_id || String(i)]);
+    if (!selected.length) { setNotice('Select at least one live result first.'); return; }
+    setSaving(true); setNotice('');
+    try {
+      const payload = selected.map((r:any) => ({
+        workspace_id:activeWorkspace.id,
+        source:r.source==='google_places'||r.source==='google_web'?'google_maps':'web_search',
+        business_name:r.business_name, category:r.category||category.trim()||null,
+        location:[area.trim(),location.trim()].filter(Boolean).join(', ')||null,
+        address:r.address||null, phone:r.phone||null, email:r.email||null, website:r.website||null,
+        rating:r.rating, source_url:r.source_url||null, business_type:r.business_type||null,
+        match_score:r.match_score??null, lead_score:r.lead_score??null,
+        recommended_product:r.recommended_product||null, source_domain:r.source_domain||null,
+        enrichment_status:r.enrichment_status||'basic', status:'new', outreach_eligibility:'review_required'
+      }));
+      const {data:existing,error:existingError}=await supabase.from('engagex_prospects').select('source,business_name,phone,website').eq('workspace_id',activeWorkspace.id);
+      if(existingError) throw new Error(existingError.message);
+      const norm=(value:unknown)=>String(value||'').trim().toLowerCase();
+      const keyOf=(row:any)=>[norm(row.source),norm(row.business_name),normPhone(row.phone),norm(row.website)].join('|');
+      const keys=new Set((existing||[]).map(keyOf)); let saved=0;
+      for(const prospect of payload) {
+        const key=keyOf(prospect); if(keys.has(key)) continue;
+        const {error}=await supabase.from('engagex_prospects').insert(prospect);
+        if(error&&error.code!=='23505') throw new Error(error.message);
+        keys.add(key); if(!error) saved++;
       }
-    }
-
-    const contactable = payload.filter((r:any) => String(r.phone || '').trim() || String(r.email || '').trim());
-    if (contactable.length) {
-      const existingContactsRes = await supabase
-        .from('engagex_contacts')
-        .select('mobile,email')
-        .eq('workspace_id', activeWorkspace.id);
-
-      if (!existingContactsRes.error) {
-        const existingPhones = new Set((existingContactsRes.data || []).map((x:any) => normPhone(x.mobile)).filter(Boolean));
-        const existingEmails = new Set((existingContactsRes.data || []).map((x:any) => normEmail(x.email)).filter(Boolean));
-
-        const contactPayload = contactable
-          .filter((r:any) => {
-            const p = normPhone(r.phone);
-            const e = normEmail(r.email);
-            return (!p || !existingPhones.has(p)) && (!e || !existingEmails.has(e));
-          })
-          .map((r:any) => ({
-            workspace_id: activeWorkspace.id,
-            name: r.business_name,
-            first_name: String(r.business_name || '').trim().split(/\s+/)[0] || r.business_name,
-            last_name: '',
-            mobile: r.phone || '',
-            email: r.email || '',
-            company: r.business_name,
-            job_title: r.business_type || r.category || 'Business Prospect',
-            city: r.location || '',
-            state: '',
-            country: 'India',
-            tags: ['lead-intelligence', String(r.business_type || r.category || 'prospect').toLowerCase()],
-            notes: [
-              'Imported from EngageX Lead Intelligence',
-              r.address ? 'Address: ' + r.address : '',
-              r.website ? 'Website: ' + r.website : '',
-              r.source_url ? 'Source: ' + r.source_url : '',
-              r.lead_score != null ? 'Lead Score: ' + r.lead_score + '%' : '',
-              r.recommended_product ? 'Recommended Product: ' + r.recommended_product : ''
-            ].filter(Boolean).join('\n'),
-            status: 'active',
-            whatsapp_consent: false,
-            sms_consent: false,
-            email_consent: false
-          }));
-
-        if (contactPayload.length) {
-          const { error: contactError } = await supabase.from('engagex_contacts').insert(contactPayload);
-          if (contactError && contactError.code !== '23505') {
-            setNotice('Some contacts could not be added: ' + contactError.message);
-          } else {
-            setAddedCrmKeys(prev => {
-              const next = new Set(prev);
-              contactPayload.forEach((x:any) => {
-                const key = normPhone(x.mobile) || normEmail(x.email);
-                if (key) next.add(key);
-              });
-              return next;
-            });
-          }
-        }
+      const plan=planProspectImport(payload,contacts);
+      const result=await importContacts(plan.items);
+      setAddedCrmKeys(prev=>new Set([...prev,...payload.map(crmKeyFor).filter(Boolean)]));
+      const message=`${result.inserted} contacts added · ${plan.duplicates+result.duplicates} duplicates skipped · ${plan.missing} without phone/email · ${saved} new prospect records saved.`;
+      setSelectedLive({});
+      if(lastHistoryId) {
+        const previous=history.find(h=>h.id===lastHistoryId)?.saved_count||0;
+        const {error}=await supabase.from('engagex_lead_search_history').update({saved_count:previous+result.inserted}).eq('workspace_id',activeWorkspace.id).eq('id',lastHistoryId);
+        if(error) throw new Error('Contacts saved, but search history could not update: '+error.message);
       }
-    }
-
-    const skipped = selected.length - fresh.length;
-    setNotice(
-      contactable.length + ' contactable business' + (contactable.length === 1 ? '' : 'es') +
-      ' processed for Contact Management' +
-      (fresh.length ? ' · ' + fresh.length + ' new prospect record' + (fresh.length === 1 ? '' : 's') + ' saved.' : '.')
-    );
-    setSelectedLive({});
-    if (lastHistoryId) {
-      await supabase
-        .from('engagex_lead_search_history')
-        .update({ saved_count: contactable.length })
-        .eq('workspace_id', activeWorkspace.id)
-        .eq('id', lastHistoryId);
-    }
-    await load();
-    await loadHistory();
+      await load(); await loadHistory(); setNotice(message);
+    } catch(e) { setNotice((e as Error).message || 'Could not save selected results.'); }
+    finally { setSaving(false); }
   };
 
   const filtered = useMemo(() => {
@@ -604,6 +487,7 @@ export const DataExtractorView: React.FC = () => {
 
               <button
                 onClick={saveLiveProspects}
+                disabled={saving}
                 className="primaryBtn small"
                 style={{padding:'10px 15px',background:'#16a34a'}}
               >

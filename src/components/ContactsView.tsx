@@ -16,19 +16,26 @@ import {
   Mail,
   Building,
   Check,
+  Copy,
+  MessageCircle,
+  MessageSquareText,
+  MapPin,
+  RefreshCw,
 } from 'lucide-react';
 import { csvCell, normalizePhone } from '../lib/metrics';
 import * as XLSX from 'xlsx';
 import { CommercialShell } from './CommercialShell';
 import { useApp } from '../context/AppContext';
-import { Contact } from '../types';
+import { Contact, ChannelType } from '../types';
 import { supabase } from '../lib/supabase';
+import { channelReady, contactDirectory, contactPhone, planProspectImport, prospectToContact as mapProspect } from '../lib/contactDirectory';
+import { ContactOutreach } from './ContactOutreach';
 
 const DEFAULT_WHATSAPP_GROUP_LINK = 'https://chat.whatsapp.com/KdCB01biJWTH6ihxLjFO8O';
 const DEFAULT_INVITE_MESSAGE = `Namaste {{first_name}} ji,\n\nAKBS Poultry Farming Private Limited se aapko hamare official WhatsApp updates group me join karne ka invite hai.\n\n*Join Group:* {{group_link}}\n\nYahan aapko project updates, process information aur important notices milenge.\n\nDhanyavaad,\n*AKBS Poultry Farming Private Limited*`;
 
 export const ContactsView: React.FC = () => {
-  const { contacts, templates, addContact, updateContact, deleteContact, bulkDeleteContacts, importContacts, workspaceSettings, activeWorkspace } = useApp();
+  const { contacts, templates, addContact, updateContact, deleteContact, bulkDeleteContacts, importContacts, workspaceSettings, activeWorkspace, refreshContacts } = useApp();
 
   const [search, setSearch] = useState('');
   const [selectedTag, setSelectedTag] = useState<string>('all');
@@ -37,7 +44,12 @@ export const ContactsView: React.FC = () => {
   const [error, setError] = useState<string>('');
   const [bulkWhatsAppQueue, setBulkWhatsAppQueue] = useState<Contact[]>([]);
   const [bulkIndex, setBulkIndex] = useState(0);
-  const [directoryMode, setDirectoryMode] = useState<'prospects' | 'contacts'>('prospects');
+  const [directoryMode, setDirectoryMode] = useState<'prospects' | 'contacts'>('contacts');
+  const [outreach, setOutreach] = useState<{ ids: string[]; channel: ChannelType; workspaceId?: string } | null>(null);
+  const [addingProspects, setAddingProspects] = useState(false);
+  const [contactCity, setContactCity] = useState('all');
+  const [contactIndustry, setContactIndustry] = useState('all');
+  const [contactChannel, setContactChannel] = useState('all');
   const [prospects, setProspects] = useState<any[]>([]);
   const [prospectsLoading, setProspectsLoading] = useState(false);
   const [prospectCategory, setProspectCategory] = useState('all');
@@ -45,7 +57,7 @@ export const ContactsView: React.FC = () => {
   const [prospectProduct, setProspectProduct] = useState('all');
   const [prospectDate, setProspectDate] = useState<'all' | 'today' | '7d' | '30d'>('all');
   const [selectedProspectIds, setSelectedProspectIds] = useState<string[]>([]);
-  const normProspectPhone = (v:any) => String(v || '').replace(/[^0-9]/g, '');
+  const normProspectPhone = contactPhone;
   const normProspectEmail = (v:any) => String(v || '').trim().toLowerCase();
 
   const crmPhoneSet = useMemo(
@@ -63,31 +75,7 @@ export const ContactsView: React.FC = () => {
     return (!!phone && crmPhoneSet.has(phone)) || (!!email && crmEmailSet.has(email));
   };
 
-  const prospectToContact = (p:any) => ({
-    name: p.business_name || 'Business Prospect',
-    first_name: String(p.business_name || 'Business').trim().split(/\s+/)[0],
-    last_name: '',
-    mobile: p.phone || '',
-    email: p.email || '',
-    company: p.business_name || '',
-    job_title: p.business_type || p.category || 'Business Prospect',
-    city: p.location || '',
-    state: '',
-    country: 'India',
-    tags: ['lead-intelligence', String(p.business_type || p.category || 'prospect').toLowerCase()],
-    notes: [
-      'Imported from EngageX Lead Intelligence',
-      p.address ? 'Address: ' + p.address : '',
-      p.website ? 'Website: ' + p.website : '',
-      p.source_url ? 'Source: ' + p.source_url : '',
-      p.lead_score != null ? 'Lead Score: ' + p.lead_score + '%' : '',
-      p.recommended_product ? 'Recommended Product: ' + p.recommended_product : ''
-    ].filter(Boolean).join('\n'),
-    status: 'active' as const,
-    whatsapp_consent: false,
-    sms_consent: false,
-    email_consent: false,
-  });
+  const prospectToContact = mapProspect;
 
   const addProspectToContacts = async (p:any) => {
     if (!p.phone && !p.email) {
@@ -109,26 +97,23 @@ export const ContactsView: React.FC = () => {
   const addSelectedProspectsToContacts = async () => {
     const selected = filteredProspects.filter((p:any) => selectedProspectIds.includes(p.id));
     const eligible = selected.filter((p:any) => (p.phone || p.email) && !prospectInCrm(p));
-    if (!eligible.length) {
+    if (!eligible.length || addingProspects) {
       setError('No selected prospects are eligible to add. They may already be in Contacts or have no phone/email.');
       return;
     }
-    let added = 0;
-    let skipped = 0;
-    for (const p of eligible) {
-      try {
-        await addContact(prospectToContact(p));
-        added++;
-      } catch {
-        skipped++;
-      }
-    }
-    setNotice(added + ' prospect(s) added to Contacts' + (skipped ? ' · ' + skipped + ' skipped.' : '.'));
-    setSelectedProspectIds([]);
+    setAddingProspects(true);
+    try {
+      const plan = planProspectImport(selected,contacts);
+      const result = await importContacts(plan.items);
+      setNotice(`${result.inserted} contacts added · ${plan.duplicates + result.duplicates} duplicates skipped · ${plan.missing} without phone/email.`);
+      setSelectedProspectIds([]); setDirectoryMode('contacts'); setError('');
+    } catch (e) { setError((e as Error).message); }
+    finally { setAddingProspects(false); }
   };
 
 
   useEffect(() => {
+    let active = true;
     const loadProspects = async () => {
       if (!activeWorkspace?.id) {
         setProspects([]);
@@ -140,12 +125,21 @@ export const ContactsView: React.FC = () => {
         .select('*')
         .eq('workspace_id', activeWorkspace.id)
         .order('created_at', { ascending: false });
+      if (!active) return;
       if (error) setError(error.message);
       setProspects(data || []);
       setProspectsLoading(false);
     };
     void loadProspects();
+    return () => { active = false; };
   }, [activeWorkspace?.id]);
+
+  useEffect(() => { setSelectedIds([]); setSelectedProspectIds([]); setOutreach(null); setContactCity('all'); setContactIndustry('all'); setContactChannel('all'); setSearch(''); setSelectedTag('all'); setProspectCategory('all'); setProspectCity('all'); setProspectProduct('all'); }, [activeWorkspace?.id]);
+  useEffect(() => { setSelectedIds([]); setSelectedProspectIds([]); }, [search, selectedTag, directoryMode, prospectCategory, prospectCity, prospectProduct, prospectDate,contactCity,contactIndustry,contactChannel]);
+  useEffect(() => { setSelectedIds(prev=>prev.filter(id=>contacts.some(c=>c.id===id))); },[contacts]);
+  const directoryRows = useMemo(() => contactDirectory(contacts,prospects),[contacts,prospects]);
+  const messageContacts = (ids: string[], channel: ChannelType) => setOutreach({ids,channel,workspaceId:activeWorkspace?.id});
+  const copyValue = async (value: string) => { try { await navigator.clipboard.writeText(value); setNotice('Copied to clipboard.'); } catch { setError('Could not copy.'); } };
 
   const prospectCategories = useMemo(
     () => Array.from(new Set(prospects.map((p:any) => (p.business_type || p.category || '').trim()).filter(Boolean))).sort(),
@@ -192,6 +186,8 @@ export const ContactsView: React.FC = () => {
 
 
   const openWhatsAppInvite = (contact: Contact) => {
+    if (!groupInviteLink) { setError('Set this workspace’s WhatsApp group link in Settings.'); return; }
+    if (!channelReady(contact,'whatsapp')) { setError('Update this contact’s WhatsApp consent and mobile number first.'); return; }
     const phone = normalizePhone(contact.mobile || '');
     if (!phone) {
       setError('This contact does not have a valid mobile number.');
@@ -203,6 +199,7 @@ export const ContactsView: React.FC = () => {
   };
 
   const startBulkWhatsAppInvites = () => {
+    if (!groupInviteLink) { setError('Set this workspace’s WhatsApp group link in Settings.'); return; }
     const selected = contacts.filter((contact) => selectedIds.includes(contact.id));
     const eligible = selected.filter((contact) => contact.whatsapp_consent && !!normalizePhone(contact.mobile || ''));
     const skipped = selected.length - eligible.length;
@@ -250,9 +247,9 @@ export const ContactsView: React.FC = () => {
   });
 
   // Form state
-  const groupInviteLink = workspaceSettings?.whatsappGroupLink || DEFAULT_WHATSAPP_GROUP_LINK;
+  const groupInviteLink = workspaceSettings?.whatsappGroupLink || (activeWorkspace?.slug==='akbs-poultry-farming'?DEFAULT_WHATSAPP_GROUP_LINK:'');
   const defaultTemplate = templates.find((t) => t.id === workspaceSettings?.defaultWhatsAppTemplateId && t.channel === 'whatsapp');
-  const groupInviteTemplate = defaultTemplate?.body || workspaceSettings?.whatsappInviteMessage || DEFAULT_INVITE_MESSAGE;
+  const groupInviteTemplate = defaultTemplate?.body || workspaceSettings?.whatsappInviteMessage || (activeWorkspace?.slug==='akbs-poultry-farming'?DEFAULT_INVITE_MESSAGE:`Namaste {{first_name}} ji,\n\n${activeWorkspace?.name || 'Our team'} invites you to join our updates group:\n{{group_link}}`);
   const buildGroupInviteMessage = (name: string) => {
     const firstName = (name || 'Ji').trim().split(/\s+/)[0] || 'Ji';
     return groupInviteTemplate
@@ -297,13 +294,18 @@ export const ContactsView: React.FC = () => {
         c.mobile.includes(q) ||
         c.email.toLowerCase().includes(q) ||
         c.company.toLowerCase().includes(q) ||
+        c.city.toLowerCase().includes(q) ||
+        (c.state || '').toLowerCase().includes(q) ||
+        (c.job_title || '').toLowerCase().includes(q) ||
         c.tags.some((t) => t.toLowerCase().includes(q));
 
       const matchesTag = selectedTag === 'all' || c.tags.includes(selectedTag);
-
-      return matchesSearch && matchesTag;
+      const row = directoryRows.find(row=>row.contact.id===c.id);
+      return matchesSearch && matchesTag && (contactCity==='all'||row?.city===contactCity)
+        && (contactIndustry==='all'||row?.industry===contactIndustry) && (contactChannel==='all'||channelReady(c,contactChannel as ChannelType));
     });
-  }, [contacts, search, selectedTag]);
+  }, [contacts, search, selectedTag,directoryRows,contactCity,contactIndustry,contactChannel]);
+  const filteredContactIds = useMemo(()=>new Set(filteredContacts.map(c=>c.id)),[filteredContacts]);
 
 
   const toggleAllProspects = (checked:boolean) => {
@@ -417,26 +419,25 @@ export const ContactsView: React.FC = () => {
 
     setIsModalOpen(false);
     setError('');
-    } catch (error) { console.error(error); }
+    } catch (error) { setError((error as Error).message || 'Could not save this contact.'); }
   };
 
   // Export to CSV
+  const contactExportRows = () => directoryRows.filter(row=>selectedIds.length?selectedIds.includes(row.contact.id):filteredContactIds.has(row.contact.id)).map(row=>({
+    Name:row.contact.name,Role:row.contact.job_title||'',Company:row.contact.company,Industry:row.industry,
+    City:row.city,State:row.contact.state||'',Address:row.address,Mobile:row.contact.mobile,Email:row.contact.email,
+    'Lead Score':row.score??'',Website:row.website,Source:row.source,Tags:row.contact.tags.join(';'),
+    'WhatsApp Consent':row.contact.whatsapp_consent?'YES':'NO','SMS Consent':row.contact.sms_consent?'YES':'NO','Email Consent':row.contact.email_consent?'YES':'NO',Status:row.contact.status
+  }));
+  const handleExportExcel = () => {
+    const rows=contactExportRows(); const workbook=XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook,XLSX.utils.json_to_sheet(rows),'Contacts');
+    XLSX.writeFile(workbook,`engagex_contacts_${Date.now()}.xlsx`);setNotice(`Exported ${rows.length} contacts to Excel.`);
+  };
   const handleExportCSV = () => {
-    const listToExport = selectedIds.length > 0 ? contacts.filter((c) => selectedIds.includes(c.id)) : filteredContacts;
-
-    const headers = ['Name', 'Mobile', 'Email', 'Company', 'City', 'Tags', 'WhatsApp Consent', 'SMS Consent', 'Email Consent', 'Status'];
-    const rows = listToExport.map((c) => [
-      c.name,
-      c.mobile,
-      c.email,
-      c.company,
-      c.city,
-      c.tags.join(';'),
-      c.whatsapp_consent ? 'YES' : 'NO',
-      c.sms_consent ? 'YES' : 'NO',
-      c.email_consent ? 'YES' : 'NO',
-      c.status,
-    ]);
+    const records=contactExportRows();
+    const headers=Object.keys(records[0]||{Name:'',Mobile:'',Email:''});
+    const rows=records.map(record=>Object.values(record));
 
     const csvContent = [headers.join(','), ...rows.map((r) => r.map(csvCell).join(','))].join('\n');
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
@@ -448,7 +449,7 @@ export const ContactsView: React.FC = () => {
     link.click();
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
-    setNotice(`Exported ${listToExport.length} contacts to CSV`);
+    setNotice(`Exported ${records.length} contacts to CSV`);
   };
 
   // Import File (Excel / CSV)
@@ -475,8 +476,8 @@ export const ContactsView: React.FC = () => {
           const name = String(row.Name || row.name || row['Full Name'] || row.Customer || `${row['First Name'] || ''} ${row['Last Name'] || ''}`.trim() || 'Customer');
           const mobile = String(row.Mobile || row.mobile || row.Phone || row.phone || row['Phone Number'] || row.Whatsapp || '').trim();
           const email = String(row.Email || row.email || row['Email Address'] || '').trim();
-          const company = String(row.Company || row.company || row.Organization || 'Enterprise').trim();
-          const city = String(row.City || row.city || row.Location || 'Bengaluru').trim();
+          const company = String(row.Company || row.company || row.Organization || '').trim();
+          const city = String(row.City || row.city || row.Location || '').trim();
           const tagsStr = String(row.Tags || row.tags || row.Category || 'imported').trim();
 
           return {
@@ -517,7 +518,7 @@ export const ContactsView: React.FC = () => {
     setNotice(`Successfully imported ${res.inserted} contacts (${res.duplicates} duplicates skipped).`);
     setIsImportOpen(false);
     setImportPreviewRows([]);
-    } catch (error) { console.error(error); }
+    } catch (error) { setError((error as Error).message || 'Could not import contacts.'); }
   };
 
   // Toggle selection
@@ -611,7 +612,7 @@ export const ContactsView: React.FC = () => {
           </select>
         </div>
 
-        <div className="rightActions" style={{ display: 'flex', gap: '8px' }}>
+        <div className="rightActions" style={{ display: 'flex', gap: '8px', flexWrap:'wrap' }}>
           <label className="cbtn secondary fileBtn" style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
             <Upload size={14} /> Import Excel / CSV
             <input type="file" accept=".csv,.xlsx,.xls" onChange={handleFileChange} />
@@ -619,6 +620,7 @@ export const ContactsView: React.FC = () => {
           <button className="cbtn secondary" onClick={handleExportCSV} style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
             <Download size={14} /> Export CSV
           </button>
+          <button className="cbtn secondary" onClick={handleExportExcel}><FileSpreadsheet size={14}/>Export Excel</button>
           <button className="cbtn primary" onClick={handleOpenNew} style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
             <Plus size={14} /> Add Contact
           </button>
@@ -655,12 +657,20 @@ export const ContactsView: React.FC = () => {
       )}
 
       {/* Bulk Action Bar */}
-      {selectedIds.length > 0 && (
+      {directoryMode === 'contacts' && <div className="contactSelectionTools">
+        <button className="cbtn secondary" disabled={!filteredContacts.length} onClick={()=>handleToggleSelectAll(!filteredContacts.every(c=>selectedIds.includes(c.id)))}>{filteredContacts.length>0&&filteredContacts.every(c=>selectedIds.includes(c.id))?'Deselect All':'Select All'}</button>
+        <span>{filteredContacts.length} contacts in this view</span>
+        <select className="searchField" aria-label="Filter contact city" value={contactCity} onChange={e=>setContactCity(e.target.value)}><option value="all">All Cities / Areas</option>{Array.from(new Set(directoryRows.map(row=>row.city).filter(Boolean))).sort().map(city=><option key={city} value={city}>{city}</option>)}</select>
+        <select className="searchField" aria-label="Filter contact industry" value={contactIndustry} onChange={e=>setContactIndustry(e.target.value)}><option value="all">All Industries</option>{Array.from(new Set(directoryRows.map(row=>row.industry).filter(Boolean))).sort().map(industry=><option key={industry} value={industry}>{industry}</option>)}</select>
+        <select className="searchField" aria-label="Filter contact channel" value={contactChannel} onChange={e=>setContactChannel(e.target.value)}><option value="all">All Channels</option><option value="whatsapp">WhatsApp opt-in</option><option value="email">Email opt-in</option><option value="sms">SMS opt-in</option></select>
+        <button className="cbtn secondary" onClick={async()=>{try{await refreshContacts?.();setNotice('Contacts refreshed.');}catch(e){setError((e as Error).message);}}}><RefreshCw size={14}/>Refresh</button>
+      </div>}
+      {directoryMode === 'contacts' && selectedIds.length > 0 && (
         <div className="bulkBar">
           <b>{selectedIds.length} contacts selected</b>
-          <span>WhatsApp Opted-in</span>
-          <span>SMS Opted-in</span>
-          <span>Email Opted-in</span>
+          <button onClick={()=>messageContacts(selectedIds,'whatsapp')}>WhatsApp Selected</button>
+          <button onClick={()=>messageContacts(selectedIds,'email')}>Email Selected</button>
+          <button onClick={()=>messageContacts(selectedIds,'sms')}>SMS Selected</button>
           <button onClick={handleExportCSV}>Export Selected</button>
           <button
             onClick={startBulkWhatsAppInvites}
@@ -696,18 +706,18 @@ export const ContactsView: React.FC = () => {
           <small>Active search view</small>
         </article>
         <article>
-          <span>WHATSAPP OPT-IN</span>
+          <span>{directoryMode==='prospects'?'PUBLIC PHONE AVAILABLE':'WHATSAPP OPT-IN'}</span>
           <strong style={{ color: '#0284c7' }}>
             {directoryMode === 'prospects' ? prospects.filter((p:any) => !!p.phone).length : contacts.filter((c) => c.whatsapp_consent).length}
           </strong>
-          <small>{directoryMode === 'prospects' ? 'Prospects with public phone' : 'Reachable via Cloud API'}</small>
+          <small>{directoryMode === 'prospects' ? 'Prospects with public phone' : 'Recorded WhatsApp consent'}</small>
         </article>
         <article>
-          <span>SMS & EMAIL OPT-IN</span>
+          <span>{directoryMode==='prospects'?'EMAIL / WEBSITE AVAILABLE':'SMS & EMAIL OPT-IN'}</span>
           <strong>
             {directoryMode === 'prospects' ? prospects.filter((p:any) => !!p.email || !!p.website).length : contacts.filter((c) => c.sms_consent || c.email_consent).length}
           </strong>
-          <small>{directoryMode === 'prospects' ? 'Prospects with email / website' : 'Compliant broadcast targets'}</small>
+          <small>{directoryMode === 'prospects' ? 'Prospects with email / website' : 'Recorded SMS or email consent'}</small>
         </article>
       </div>
 
@@ -726,6 +736,7 @@ export const ContactsView: React.FC = () => {
                   <button
                     className="cbtn primary"
                     onClick={addSelectedProspectsToContacts}
+                    disabled={addingProspects}
                   >
                     Add Selected to Contacts ({selectedProspectIds.length})
                   </button>
@@ -836,7 +847,7 @@ export const ContactsView: React.FC = () => {
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
             <div>
               <h3>Contact Directory</h3>
-              <p>Every messaging dispatch strictly respects WhatsApp, SMS, and Email opt-in consent flags.</p>
+              <p>Saved extracted businesses and existing contacts in {activeWorkspace?.name || 'your workspace'}. Select contacts to compose messages.</p>
             </div>
             <span style={{ fontSize: '10px', color: '#64748b' }}>
               Showing {filteredContacts.length} of {contacts.length} records
@@ -860,106 +871,47 @@ export const ContactsView: React.FC = () => {
             </div>
           ) : (
             <div className="responsiveTable">
-              <table className="dataTable">
+              <table className="dataTable contactDirectoryTable">
                 <thead>
                   <tr>
                     <th style={{ width: '30px' }}>
                       <input
                         type="checkbox"
-                        checked={selectedIds.length === filteredContacts.length && filteredContacts.length > 0}
+                        checked={filteredContacts.length > 0 && filteredContacts.every(c => selectedIds.includes(c.id))}
                         onChange={(e) => handleToggleSelectAll(e.target.checked)}
                       />
                     </th>
-                    <th>Contact Profile</th>
-                    <th>Phone / Email</th>
-                    <th>Company & City</th>
-                    <th>Tags</th>
-                    <th>Channel Consent</th>
-                    <th>Status</th>
-                    <th>Actions</th>
+                    <th>Contact Name &amp; Role</th>
+                    <th>Company &amp; Industry</th>
+                    <th>Location (City / State)</th>
+                    <th>Mobile / WhatsApp</th>
+                    <th>Business Email</th>
+                    <th>Score</th>
+                    <th>CRM Actions</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredContacts.map((c) => (
-                    <tr key={c.id}>
-                      <td>
-                        <input
-                          type="checkbox"
-                          checked={selectedIds.includes(c.id)}
-                          onChange={() => handleToggleSelectOne(c.id)}
-                        />
-                      </td>
-                      <td>
-                        <b>{c.name}</b>
-                        <small className="cellSub">{c.job_title || 'Customer'}</small>
-                      </td>
-                      <td>
-                        <div style={{ display: 'flex', flexDirection: 'column' }}>
-                          <span style={{ fontSize: '10px', fontWeight: 600 }}>{c.mobile || '—'}</span>
-                          <small className="cellSub">{c.email || '—'}</small>
-                        </div>
-                      </td>
-                      <td>
-                        <b>{c.company || '—'}</b>
-                        <small className="cellSub">{c.city || '—'}</small>
-                      </td>
-                      <td>
-                        <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
-                          {c.tags.slice(0, 2).map((tag) => (
-                            <span key={tag} style={{fontSize:'8px',background:'#f1f5f9',color:'#475569',padding:'2px 6px',borderRadius:'4px'}}>
-                              #{tag}
-                            </span>
-                          ))}
-                          {c.tags.length > 2 && <span style={{fontSize:'8px',color:'#94a3b8'}}>+{c.tags.length - 2}</span>}
-                        </div>
-                      </td>
-                      <td>
-                        <div className="consentBadges">
-                          <span className={c.whatsapp_consent ? 'on' : ''}>WA</span>
-                          <span className={c.sms_consent ? 'on' : ''}>SMS</span>
-                          <span className={c.email_consent ? 'on' : ''}>Email</span>
-                        </div>
-                      </td>
-                      <td>
-                        <span className="status" style={{background:c.status==='active'?'#dcfce7':'#fee2e2',color:c.status==='active'?'#15803d':'#991b1b'}}>
-                          {c.status.toUpperCase()}
-                        </span>
-                      </td>
-                      <td>
-                        <div style={{display:'flex',gap:6,flexWrap:'wrap'}}>
-                          <button
-                            className="tableAction"
-                            onClick={() => openWhatsAppInvite(c)}
-                            disabled={!c.whatsapp_consent}
-                            title={c.whatsapp_consent ? 'Open WhatsApp' : 'WhatsApp consent required'}
-                            style={{color:c.whatsapp_consent?'#15803d':'#94a3b8'}}
-                          >
-                            WhatsApp
-                          </button>
-                          <button
-                            className="tableAction"
-                            disabled={!c.email_consent || !c.email}
-                            title={c.email_consent ? 'Open email composer' : 'Email consent required'}
-                            onClick={() => { if (c.email_consent && c.email) window.location.href = 'mailto:' + c.email; }}
-                          >
-                            Email
-                          </button>
-                          <button
-                            className="tableAction"
-                            disabled={!c.sms_consent || !c.mobile}
-                            title={c.sms_consent ? 'Open SMS composer' : 'SMS consent required'}
-                            onClick={() => { if (c.sms_consent && c.mobile) window.location.href = 'sms:' + c.mobile; }}
-                          >
-                            SMS
-                          </button>
-                          <button className="tableAction" onClick={() => openWhatsAppInvite(c)} style={{color:'#15803d'}}>WhatsApp Invite</button>
-                          <button className="tableAction" onClick={() => void copyGroupInvite(c)}>Copy Invite</button>
-                          <button className="tableAction" onClick={() => handleOpenEdit(c)}>Edit</button>
-                          <button className="tableAction dangerText" onClick={() => { if (confirm(`Delete contact ${c.name}?`)) deleteContact(c.id); }}>Delete</button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
+                  {directoryRows.filter(row => filteredContactIds.has(row.contact.id)).map(row => {
+                    const c = row.contact;
+                    return <tr key={c.id} className={selectedIds.includes(c.id) ? 'contactSelectedRow' : ''}>
+                      <td><input type="checkbox" aria-label={`Select ${c.name}`} checked={selectedIds.includes(c.id)} onChange={() => handleToggleSelectOne(c.id)}/></td>
+                      <td><b>{c.name}</b><small className="cellSub">{c.job_title || '—'}</small><div className="contactTags">{c.tags.slice(0,2).map(tag=><span key={tag}>{tag}</span>)}</div></td>
+                      <td><b>{c.company || '—'}</b>{row.industry && <span className="contactIndustry">{row.industry}</span>}{row.product && <small className="cellSub">{row.product}</small>}</td>
+                      <td><div className="contactLocation"><MapPin size={13}/><b>{row.city || '—'}</b></div><small className="cellSub">{c.state || row.address || '—'}</small></td>
+                      <td><div className="contactAddress"><span>{c.mobile || '—'}</span>{c.mobile && <button className="tableAction" aria-label={`Copy mobile for ${c.name}`} onClick={()=>void copyValue(c.mobile)}><Copy size={12}/></button>}</div>
+                        <div className="consentBadges"><span className={c.whatsapp_consent?'on':''}>WA {c.whatsapp_consent?'opt-in':'review'}</span><span className={c.sms_consent?'on':''}>SMS {c.sms_consent?'opt-in':'review'}</span></div></td>
+                      <td><div className="contactAddress"><span>{c.email || '—'}</span>{c.email && <button className="tableAction" aria-label={`Copy email for ${c.name}`} onClick={()=>void copyValue(c.email)}><Copy size={12}/></button>}</div>
+                        <div className="consentBadges"><span className={c.email_consent?'on':''}>Email {c.email_consent?'opt-in':'review'}</span></div></td>
+                      <td><span className="contactScore" style={{background:row.score===null?'#f1f5f9':row.score>=80?'#dcfce7':'#e0f2fe',color:row.score===null?'#64748b':row.score>=80?'#15803d':'#0369a1'}}>{row.score===null?'—':`${row.score}%`}</span></td>
+                      <td><span className="contactCrmStatus">{c.status==='active'?'✓ In CRM':c.status.toUpperCase()}</span><div className="contactRowActions">
+                        <button className="tableAction" title="Compose WhatsApp message" aria-label={`WhatsApp ${c.name}`} disabled={!c.mobile} onClick={()=>messageContacts([c.id],'whatsapp')}><MessageCircle size={15}/></button>
+                        <button className="tableAction" title="Compose email" aria-label={`Email ${c.name}`} disabled={!c.email} onClick={()=>messageContacts([c.id],'email')}><Mail size={15}/></button>
+                        <button className="tableAction" title="Compose SMS" aria-label={`SMS ${c.name}`} disabled={!c.mobile} onClick={()=>messageContacts([c.id],'sms')}><MessageSquareText size={15}/></button>
+                        <button className="tableAction" title="Edit contact and consent" aria-label={`Edit ${c.name}`} onClick={()=>handleOpenEdit(c)}><Edit2 size={15}/></button>
+                        <button className="tableAction dangerText" title="Delete contact" aria-label={`Delete ${c.name}`} onClick={async()=>{if(confirm(`Delete contact ${c.name}?`)){try{await bulkDeleteContacts([c.id]);setSelectedIds(prev=>prev.filter(id=>id!==c.id));setNotice(`Deleted ${c.name}.`);}catch(e){setError((e as Error).message);}}}}><Trash2 size={15}/></button>
+                      </div></td>
+                    </tr>;
+                  })}
                 </tbody>
               </table>
             </div>
@@ -1005,6 +957,8 @@ export const ContactsView: React.FC = () => {
           </div>
         </div>
       )}
+
+      {outreach && outreach.workspaceId===activeWorkspace?.id && <ContactOutreach key={outreach.ids.join(',')+outreach.channel} contacts={contacts.filter(c=>outreach.ids.includes(c.id))} initialChannel={outreach.channel} onClose={()=>setOutreach(null)}/>}
 
       {/* Add / Edit Contact Modal */}
       {isModalOpen && (

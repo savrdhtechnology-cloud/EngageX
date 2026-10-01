@@ -30,7 +30,7 @@ export const TemplatesView: React.FC = () => {
   // Form
   const [name, setName] = useState('');
   const [channel, setChannel] = useState<ChannelType>('whatsapp');
-  const [category, setCategory] = useState<'Marketing' | 'Utility' | 'Authentication'>('Marketing');
+  const [category, setCategory] = useState<Template['category']>('Marketing');
   const [dltTemplateId, setDltTemplateId] = useState('');
   const [subject, setSubject] = useState('');
   const [body, setBody] = useState('');
@@ -448,6 +448,7 @@ export const TemplatesView: React.FC = () => {
                     <option value="Marketing">Marketing / Promotional</option>
                     <option value="Utility">Utility / Transactional</option>
                     <option value="Authentication">Authentication / OTP</option>
+                    <option value="Transactional">Transactional</option>
                   </select>
                 </div>
 

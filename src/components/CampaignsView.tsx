@@ -20,6 +20,7 @@ import {
 import { CommercialShell } from './CommercialShell';
 import { useApp } from '../context/AppContext';
 import { Campaign, ChannelType } from '../types';
+import { campaignAudienceLabel } from '../lib/metrics';
 
 export const CampaignsView: React.FC = () => {
   const { campaigns, contacts, addCampaign, queueCampaign, updateCampaign, deleteCampaign } = useApp();
@@ -253,7 +254,7 @@ export const CampaignsView: React.FC = () => {
                         </div>
                       </td>
                       <td>
-                        <span style={{ fontSize: '10px' }}>{c.target_audience}</span>
+                        <span style={{ fontSize: '10px' }}>{campaignAudienceLabel(c.target_audience)}</span>
                       </td>
                       <td>
                         <b>{c.delivered_count.toLocaleString()}</b>

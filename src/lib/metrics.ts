@@ -28,6 +28,17 @@ export function csvCell(value: unknown) {
 
 export function campaignAudience(campaign: Campaign, contacts: Contact[]) {
   const tag = campaign.target_audience.startsWith('Tags: #') ? campaign.target_audience.slice(7) : null;
-  return contacts.filter(c => c.status === 'active' && (!tag || c.tags.includes(tag)) && campaign.channels.some(ch =>
+  let selected: string[] | null = null;
+  if (campaign.target_audience.startsWith('Contacts: ')) {
+    try { const ids = JSON.parse(campaign.target_audience.slice(10)); selected = Array.isArray(ids) && ids.every(id => typeof id === 'string') ? ids : []; }
+    catch { selected = []; }
+  }
+  return contacts.filter(c => c.status === 'active' && (selected === null || selected.includes(c.id)) && (!tag || c.tags.includes(tag)) && campaign.channels.some(ch =>
     ch === 'email' ? c.email_consent && !!c.email : ch === 'sms' ? c.sms_consent && !!normalizePhone(c.mobile) : c.whatsapp_consent && !!normalizePhone(c.mobile)));
+}
+
+export function campaignAudienceLabel(audience: string) {
+  if (!audience.startsWith('Contacts: ')) return audience;
+  try { const ids = JSON.parse(audience.slice(10)); return `${Array.isArray(ids) ? ids.length : 0} selected contacts`; }
+  catch { return '0 selected contacts'; }
 }

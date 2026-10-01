@@ -4,11 +4,15 @@ begin;
 select set_config('request.jwt.claims',json_build_object('sub',(select owner_id from public.engagex_workspaces where slug='savrdh-engagex'),'email','savrdhtechnology@gmail.com','role','authenticated')::text,true);
 set local role authenticated;
 do $$
-declare wid uuid; cid uuid;
+declare wid uuid; cid uuid; campaign_id uuid; probe_phone text:='99'||lpad(floor(random()*100000000)::bigint::text,8,'0');
 begin
  select id into strict wid from public.engagex_workspaces where slug='savrdh-engagex';
- insert into public.engagex_contacts(workspace_id,name,email,mobile) values(wid,'Rollback probe','engagex-test@example.invalid','9893345906') returning id into cid;
- if not exists(select 1 from public.engagex_contacts where id=cid and mobile='+919893345906') then raise exception 'Normalization failed'; end if;
+ insert into public.engagex_contacts(workspace_id,name,email,mobile) values(wid,'Rollback probe',gen_random_uuid()::text||'@example.invalid',probe_phone) returning id into cid;
+ if not exists(select 1 from public.engagex_contacts where id=cid and mobile='+91'||probe_phone) then raise exception 'Normalization failed'; end if;
+ insert into public.engagex_campaigns(workspace_id,name,channels,body,target_audience)
+ values(wid,'Selected contact probe',array['email'],'Test message','Contacts: '||json_build_array(cid)::text) returning id into campaign_id;
+ if not exists(select 1 from public.engagex_campaigns where id=campaign_id and target_audience='Contacts: '||json_build_array(cid)::text and status='draft' and sent_count=0)
+ then raise exception 'Selected campaign audience was not persisted as an unsent draft';end if;
  update public.engagex_contacts set status='unsubscribed',whatsapp_consent=true where id=cid;
  if exists(select 1 from public.engagex_contacts where id=cid and whatsapp_consent) then raise exception 'Consent enforcement failed'; end if;
  if not exists(select 1 from public.engagex_audit_logs where resource_id=cid::text and action='INSERT') then raise exception 'Audit missing'; end if;
