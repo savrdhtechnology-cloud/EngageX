@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   BarChart3,
   ContactRound,
@@ -25,13 +25,16 @@ import {
   Layers,
   Flame,
   CheckCheck,
+  Building2,
+  RefreshCw,
 } from 'lucide-react';
 import { CommercialShell } from './CommercialShell';
 import { summarize } from '../lib/metrics';
 import { useApp } from '../context/AppContext';
+import { supabase } from '../lib/supabase';
 
 export const DashboardView: React.FC = () => {
-  const { contacts, campaigns, messages, billing, setAppTab, queueCampaign, auditLogs, setActiveChatContactId } = useApp();
+  const { contacts, campaigns, messages, billing, setAppTab, queueCampaign, auditLogs, setActiveChatContactId, activeWorkspace, switchWorkspace } = useApp();
 
   const [timeRange, setTimeRange] = useState<'7d' | '14d' | '30d'>('14d');
   const [selectedChannel, setSelectedChannel] = useState<'all' | 'whatsapp' | 'sms' | 'email'>('all');
@@ -39,9 +42,67 @@ export const DashboardView: React.FC = () => {
   const [selectedBar, setSelectedBar] = useState<any | null>(null);
   const [hoveredHour, setHoveredHour] = useState<any | null>(null);
   const [selectedHour, setSelectedHour] = useState<any | null>(null);
+  const [clientPortfolio, setClientPortfolio] = useState<any[]>([]);
+  const [clientPortfolioLoading, setClientPortfolioLoading] = useState(false);
+  const [clientPortfolioError, setClientPortfolioError] = useState('');
 
   const activeBar = hoveredBar || selectedBar;
   const activeHour = hoveredHour || selectedHour;
+
+  const isMasterWorkspace = activeWorkspace?.slug === 'savrdh-engagex';
+
+  const loadClientPortfolio = async () => {
+    if (!isMasterWorkspace) {
+      setClientPortfolio([]);
+      setClientPortfolioError('');
+      return;
+    }
+    setClientPortfolioLoading(true);
+    setClientPortfolioError('');
+    try {
+      const { data: workspaces, error: workspaceError } = await supabase
+        .from('engagex_workspaces')
+        .select('id,slug,name,settings,created_at')
+        .eq('settings->>workspaceType', 'Client')
+        .order('created_at', { ascending: false });
+      if (workspaceError) throw workspaceError;
+
+      const rows = await Promise.all((workspaces || []).map(async (client: any) => {
+        const [contactResult, campaignResult, messageResult, lastMessageResult] = await Promise.all([
+          supabase.from('engagex_contacts').select('id', { count: 'exact', head: true }).eq('workspace_id', client.id),
+          supabase.from('engagex_campaigns').select('id', { count: 'exact', head: true }).eq('workspace_id', client.id),
+          supabase.from('engagex_messages').select('id', { count: 'exact', head: true }).eq('workspace_id', client.id),
+          supabase.from('engagex_messages').select('created_at').eq('workspace_id', client.id).order('created_at', { ascending: false }).limit(1).maybeSingle(),
+        ]);
+        const firstError = contactResult.error || campaignResult.error || messageResult.error || lastMessageResult.error;
+        if (firstError) throw firstError;
+        return {
+          ...client,
+          contacts: contactResult.count || 0,
+          campaigns: campaignResult.count || 0,
+          messages: messageResult.count || 0,
+          lastActivity: lastMessageResult.data?.created_at || client.created_at,
+        };
+      }));
+      setClientPortfolio(rows);
+    } catch (e: any) {
+      setClientPortfolioError(e?.message || 'Unable to load client portfolio.');
+      setClientPortfolio([]);
+    } finally {
+      setClientPortfolioLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    void loadClientPortfolio();
+  }, [activeWorkspace?.slug]);
+
+  const portfolioTotals = useMemo(() => clientPortfolio.reduce((acc, client) => ({
+    clients: acc.clients + 1,
+    contacts: acc.contacts + client.contacts,
+    campaigns: acc.campaigns + client.campaigns,
+    messages: acc.messages + client.messages,
+  }), { clients: 0, contacts: 0, campaigns: 0, messages: 0 }), [clientPortfolio]);
 
   // Metrics computation
   const stats = useMemo(() => {
@@ -139,6 +200,102 @@ export const DashboardView: React.FC = () => {
       title="Communication Overview"
       subtitle="Interactive omnichannel intelligence, dispatch analytics, and customer conversion telemetry."
     >
+      {isMasterWorkspace && (
+        <section style={{ marginBottom: 18 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', gap: 12, marginBottom: 10, flexWrap: 'wrap' }}>
+            <div>
+              <small style={{ fontSize: 8, letterSpacing: 1.1, color: '#64748b', fontWeight: 900 }}>SAVRDH TECHNOLOGY · CLIENT PORTFOLIO</small>
+              <h2 style={{ margin: '4px 0 3px', fontSize: 18, color: '#0f172a' }}>All Client CRM Overview</h2>
+              <p style={{ margin: 0, fontSize: 10, color: '#64748b' }}>Live consolidated visibility across every client workspace. Client records remain isolated inside their own CRM.</p>
+            </div>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button
+                type="button"
+                onClick={() => void loadClientPortfolio()}
+                disabled={clientPortfolioLoading}
+                style={{ border: '1px solid #dbe7ee', background: '#fff', color: '#475569', borderRadius: 9, padding: '8px 10px', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 10, fontWeight: 800 }}
+              >
+                <RefreshCw size={13} /> {clientPortfolioLoading ? 'Refreshing…' : 'Refresh'}
+              </button>
+              <button
+                type="button"
+                onClick={() => setAppTab('clients')}
+                style={{ border: 0, background: '#0891b2', color: '#fff', borderRadius: 9, padding: '8px 11px', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 10, fontWeight: 800 }}
+              >
+                <Building2 size={13} /> Manage Clients
+              </button>
+            </div>
+          </div>
+
+          {clientPortfolioError && <div className="dashboardError">{clientPortfolioError}</div>}
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,minmax(0,1fr))', gap: 10, marginBottom: 10 }}>
+            {[
+              ['CLIENT COMPANIES', portfolioTotals.clients, 'Active isolated workspaces'],
+              ['CLIENT CONTACTS', portfolioTotals.contacts, 'Total contacts across clients'],
+              ['CLIENT CAMPAIGNS', portfolioTotals.campaigns, 'Campaigns across clients'],
+              ['CLIENT MESSAGES', portfolioTotals.messages, 'Message events across clients'],
+            ].map(([label, value, note]) => (
+              <article key={String(label)} style={{ background: '#fff', border: '1px solid #dfe9ed', borderRadius: 12, padding: '13px 14px' }}>
+                <span style={{ display: 'block', fontSize: 8, color: '#78909c', fontWeight: 900, letterSpacing: .5 }}>{label}</span>
+                <strong style={{ display: 'block', margin: '6px 0 3px', fontSize: 21, color: '#0f172a' }}>{Number(value).toLocaleString()}</strong>
+                <small style={{ fontSize: 8, color: '#94a3b8' }}>{note}</small>
+              </article>
+            ))}
+          </div>
+
+          <div style={{ background: '#fff', border: '1px solid #dfe9ed', borderRadius: 14, overflow: 'hidden' }}>
+            <div style={{ padding: '11px 14px', borderBottom: '1px solid #edf2f4', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <b style={{ fontSize: 11, color: '#0f172a' }}>Client Workspace Performance</b>
+              <span style={{ fontSize: 8, color: '#94a3b8' }}>Click a client to open its isolated CRM</span>
+            </div>
+            {clientPortfolioLoading && clientPortfolio.length === 0 ? (
+              <div style={{ padding: 18, fontSize: 10, color: '#64748b' }}>Loading client portfolio…</div>
+            ) : clientPortfolio.length === 0 ? (
+              <div style={{ padding: 18, fontSize: 10, color: '#64748b' }}>No client workspaces found yet.</div>
+            ) : (
+              <div style={{ overflowX: 'auto' }}>
+                <table className="dashTable" style={{ marginTop: 0 }}>
+                  <thead>
+                    <tr>
+                      <th>Client Company</th>
+                      <th>Contacts</th>
+                      <th>Campaigns</th>
+                      <th>Messages</th>
+                      <th>Last Activity</th>
+                      <th>CRM</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {clientPortfolio.slice(0, 8).map(client => (
+                      <tr key={client.id}>
+                        <td>
+                          <b style={{ fontSize: 10 }}>{client.name}</b>
+                          <small style={{ display: 'block', marginTop: 2, color: '#94a3b8', fontSize: 8 }}>{client.slug}</small>
+                        </td>
+                        <td>{client.contacts.toLocaleString()}</td>
+                        <td>{client.campaigns.toLocaleString()}</td>
+                        <td>{client.messages.toLocaleString()}</td>
+                        <td>{new Date(client.lastActivity).toLocaleDateString()}</td>
+                        <td>
+                          <button
+                            type="button"
+                            onClick={() => void switchWorkspace?.(client.slug)}
+                            style={{ border: 0, background: 'transparent', color: '#0891b2', fontSize: 9, fontWeight: 900, cursor: 'pointer', padding: 0 }}
+                          >
+                            Open Workspace →
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        </section>
+      )}
+
       {/* Welcome Banner */}
       <div className="welcomeBand">
         <div>
