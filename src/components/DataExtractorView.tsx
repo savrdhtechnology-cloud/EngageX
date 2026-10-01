@@ -91,7 +91,7 @@ export const DataExtractorView: React.FC = () => {
       if (data?.error) throw new Error(data.error);
       setLiveResults(data?.results || []);
       if (!(data?.results || []).length) setNotice('No live Google web results found for this search.');
-      else if (data?.engine === 'google_web') setNotice('Live Google web results loaded. Select the businesses you want to save.');
+      else setNotice((data?.fallback_used ? 'Fallback public web search used. ' : 'Google public web search used. ') + 'Select the businesses you want to save.');
     } catch (e: any) {
       setNotice(e?.message || 'Live search failed.');
     } finally {
@@ -109,7 +109,7 @@ export const DataExtractorView: React.FC = () => {
     setNotice('');
     const payload = selected.map((r: any) => ({
       workspace_id: activeWorkspace.id,
-      source: 'google_maps',
+      source: r.source === 'google_web' ? 'google_maps' : 'web_search',
       business_name: r.business_name,
       category: r.category || category.trim() || null,
       location: location.trim() || null,
@@ -262,8 +262,8 @@ export const DataExtractorView: React.FC = () => {
         <section style={{background:'#fff',border:'1px solid #dfe9ed',borderRadius:14,overflow:'hidden',marginBottom:14}}>
           <div style={{padding:'12px 14px',borderBottom:'1px solid #edf2f4',display:'flex',justifyContent:'space-between',alignItems:'center',gap:10,flexWrap:'wrap'}}>
             <div>
-              <b style={{fontSize:11}}>Live Google Search Results</b>
-              <small style={{display:'block',fontSize:8,color:'#94a3b8',marginTop:2}}>{liveResults.length} public web results found · select records to save into Lead Intelligence</small>
+              <b style={{fontSize:11}}>Live Web Search Results</b>
+              <small style={{display:'block',fontSize:8,color:'#94a3b8',marginTop:2}}>{liveResults.length} public web results found · Google is preferred, fallback search is used when Google blocks server requests</small>
             </div>
             <button onClick={saveLiveProspects} className="primaryBtn small">Save Selected</button>
           </div>
