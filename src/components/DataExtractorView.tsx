@@ -308,7 +308,7 @@ export const DataExtractorView: React.FC = () => {
       </section>
 
       <section style={{background:'#fff',border:'1px solid #dfe9ed',borderRadius:16,padding:20,marginBottom:18,boxShadow:'0 8px 24px rgba(15,23,42,.035)'}}>
-        <div style={{display:'grid',gridTemplateColumns:'1.6fr .9fr 1.1fr 1.15fr 1.05fr auto auto auto',gap:8,alignItems:'center'}}>
+        <div style={{display:'grid',gridTemplateColumns:'minmax(180px,1.5fr) minmax(110px,.8fr) minmax(140px,1fr) minmax(150px,1fr) minmax(130px,.9fr) auto auto auto',gap:8,alignItems:'center'}}>
           <div style={{position:'relative'}}>
             <Search size={17} style={{position:'absolute',left:12,top:14,color:'#94a3b8'}}/>
             <input value={query} onChange={e=>setQuery(e.target.value)} placeholder="Search company, phone, email, website..." style={{width:'100%',padding:'13px 12px 13px 38px',border:'1px solid #dbe7ee',borderRadius:9}}/>
@@ -332,7 +332,7 @@ export const DataExtractorView: React.FC = () => {
 
       {liveResults.length > 0 && (
         <section style={{background:'#fff',border:'1px solid #dfe9ed',borderRadius:16,overflow:'hidden',marginBottom:18,boxShadow:'0 10px 28px rgba(15,23,42,.04)'}}>
-          <div style={{padding:'16px 18px',borderBottom:'1px solid #edf2f4',display:'flex',justifyContent:'space-between',alignItems:'center',gap:12,flexWrap:'wrap'}}>
+          <div style={{padding:'14px 16px',borderBottom:'1px solid #edf2f4',display:'flex',justifyContent:'space-between',alignItems:'center',gap:10,flexWrap:'wrap'}}>
             <div>
               <b style={{fontSize:15}}>Live Google Maps Results</b>
               <small style={{display:'block',fontSize:10,color:'#94a3b8',marginTop:2}}>{liveResults.length} Google Maps businesses found for {[area, location].filter(Boolean).join(', ') || 'your search'} · select records to save</small>
@@ -345,11 +345,11 @@ export const DataExtractorView: React.FC = () => {
               <button onClick={saveLiveProspects} className="primaryBtn small">Save Selected</button>
             </div>
           </div>
-          <div style={{overflowX:'auto'}}>
-            <table className="dashTable" style={{marginTop:0,fontSize:13,minWidth:1180,lineHeight:1.45}}>
+          <div style={{overflowX:'hidden'}}>
+            <table className="dashTable" style={{marginTop:0,fontSize:12,lineHeight:1.4,width:'100%',tableLayout:'fixed'}}>
               <thead>
                 <tr>
-                  <th style={{width:42,textAlign:'center'}}>
+                  <th style={{width:'4%',textAlign:'center'}}>
                     <input
                       type="checkbox"
                       aria-label="Select all live results"
@@ -358,14 +358,14 @@ export const DataExtractorView: React.FC = () => {
                       style={{width:17,height:17,cursor:'pointer'}}
                     />
                   </th>
-                  <th style={{minWidth:250,fontSize:11,padding:'13px 12px'}}>Business</th>
-                  <th style={{minWidth:170,fontSize:11,padding:'13px 12px'}}>Business Type</th>
-                  <th style={{minWidth:145,fontSize:11,padding:'13px 12px'}}>Phone</th>
-                  <th style={{minWidth:180,fontSize:11,padding:'13px 12px'}}>Email</th>
-                  <th style={{minWidth:140,fontSize:11,padding:'13px 12px'}}>Source</th>
-                  <th style={{minWidth:90,fontSize:11,padding:'13px 12px'}}>Match</th>
-                  <th style={{minWidth:105,fontSize:11,padding:'13px 12px'}}>Lead Score</th>
-                  <th style={{minWidth:155,fontSize:11,padding:'13px 12px'}}>Recommended Product</th>
+                  <th style={{width:'24%',fontSize:11,padding:'12px 8px'}}>Business</th>
+                  <th style={{width:'13%',fontSize:11,padding:'12px 8px'}}>Business Type</th>
+                  <th style={{width:'13%',fontSize:11,padding:'12px 8px'}}>Phone</th>
+                  <th style={{width:'12%',fontSize:11,padding:'12px 8px'}}>Email</th>
+                  <th style={{width:'11%',fontSize:11,padding:'12px 8px'}}>Source</th>
+                  <th style={{width:'7%',fontSize:11,padding:'12px 6px'}}>Match</th>
+                  <th style={{width:'8%',fontSize:11,padding:'12px 6px'}}>Lead Score</th>
+                  <th style={{width:'8%',fontSize:11,padding:'12px 6px'}}>Product</th>
                 </tr>
               </thead>
               <tbody>
@@ -374,14 +374,14 @@ export const DataExtractorView: React.FC = () => {
                   return (
                     <tr key={key}>
                       <td style={{textAlign:'center',padding:'14px 10px'}}><input type="checkbox" checked={!!selectedLive[key]} onChange={e=>setSelectedLive(prev=>({...prev,[key]:e.target.checked}))} style={{width:17,height:17,cursor:'pointer'}}/></td>
-                      <td style={{padding:'14px 12px',fontSize:13}}><b style={{fontSize:13}}>{r.business_name}</b>{r.website && <small style={{display:'block',fontSize:10,color:'#94a3b8',marginTop:3,maxWidth:260,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{r.source_domain || r.website}</small>}</td>
-                      <td style={{padding:'14px 12px',fontSize:12}}>{r.business_type || r.category || '—'}</td>
-                      <td style={{padding:'14px 12px',fontSize:12,fontWeight:700}}>{r.phone || '—'}</td>
-                      <td style={{padding:'14px 12px',fontSize:12}}>{r.email || '—'}</td>
-                      <td style={{padding:'14px 12px',fontSize:12}}>{r.source_domain || 'Google Maps'}</td>
-                      <td style={{padding:'14px 12px'}}><span className="dashBadge" style={{fontSize:11,padding:'5px 9px'}}>{r.match_score ?? '—'}{r.match_score != null ? '%' : ''}</span></td>
-                      <td style={{padding:'14px 12px'}}><span className="dashBadge" style={{fontSize:11,padding:'5px 9px',background:(r.lead_score||0)>=80?'#ecfdf5':(r.lead_score||0)>=60?'#fff7ed':'#f8fafc',color:(r.lead_score||0)>=80?'#047857':(r.lead_score||0)>=60?'#c2410c':'#64748b'}}>{r.lead_score ?? '—'}{r.lead_score != null ? '%' : ''}</span></td>
-                      <td style={{padding:'14px 12px'}}><b style={{fontSize:12,color:'#0369a1'}}>{r.recommended_product || 'EngageX'}</b></td>
+                      <td style={{padding:'12px 8px',fontSize:12,whiteSpace:'normal',wordBreak:'break-word'}}><b style={{fontSize:12,lineHeight:1.35}}>{r.business_name}</b>{r.website && <small style={{display:'block',fontSize:9,color:'#94a3b8',marginTop:3,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{r.source_domain || r.website}</small>}</td>
+                      <td style={{padding:'12px 8px',fontSize:11,whiteSpace:'normal',wordBreak:'break-word'}}>{r.business_type || r.category || '—'}</td>
+                      <td style={{padding:'12px 8px',fontSize:11,fontWeight:700,whiteSpace:'normal',wordBreak:'break-word'}}>{r.phone || '—'}</td>
+                      <td style={{padding:'12px 8px',fontSize:10,whiteSpace:'normal',wordBreak:'break-word'}}>{r.email || '—'}</td>
+                      <td style={{padding:'12px 8px',fontSize:10,whiteSpace:'normal',wordBreak:'break-word'}}>{r.source_domain || 'Google Maps'}</td>
+                      <td style={{padding:'12px 6px'}}><span className="dashBadge" style={{fontSize:10,padding:'4px 7px'}}>{r.match_score ?? '—'}{r.match_score != null ? '%' : ''}</span></td>
+                      <td style={{padding:'12px 6px'}}><span className="dashBadge" style={{fontSize:10,padding:'4px 7px',background:(r.lead_score||0)>=80?'#ecfdf5':(r.lead_score||0)>=60?'#fff7ed':'#f8fafc',color:(r.lead_score||0)>=80?'#047857':(r.lead_score||0)>=60?'#c2410c':'#64748b'}}>{r.lead_score ?? '—'}{r.lead_score != null ? '%' : ''}</span></td>
+                      <td style={{padding:'12px 6px',whiteSpace:'normal',wordBreak:'break-word'}}><b style={{fontSize:10,color:'#0369a1'}}>{r.recommended_product || 'EngageX'}</b></td>
                     </tr>
                   );
                 })}
