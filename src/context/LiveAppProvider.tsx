@@ -161,7 +161,47 @@ export const LiveAppProvider: React.FC<{children: React.ReactNode}> = ({ childre
     addCampaign:data=>insert('campaigns',{...data,status:'draft',send_mode:'draft',scheduled_at:null}),
     updateCampaign:(id,data)=>update('campaigns',id,data),
     deleteCampaign:id=>safely(()=>remove('campaigns',[id])),
-    queueCampaign:()=>reportError(new Error('Campaign saved as a draft. Configure a messaging provider and dispatcher before launch.')),
+    queueCampaign:id=>run(async()=>{
+      const campaign=records.campaigns.find(c=>c.id===id);
+      if(!campaign) throw new Error('Campaign not found.');
+      if(!Array.isArray(campaign.channels) || campaign.channels.length!==1 || campaign.channels[0]!=='email')
+        throw new Error('Live queue is currently available for Email campaigns only.');
+
+      let ids:string[]|null=null;
+      if(typeof campaign.target_audience==='string' && campaign.target_audience.startsWith('Contacts: ')) {
+        try { const parsed=JSON.parse(campaign.target_audience.slice(10)); if(Array.isArray(parsed)) ids=parsed.filter((x:any)=>typeof x==='string'); } catch {}
+      }
+
+      let audience=records.contacts.filter(c=>c.status==='active' && c.email_consent && !!c.email);
+      if(ids) audience=audience.filter(c=>ids!.includes(c.id));
+      if(!audience.length) throw new Error('No eligible contacts with recorded email consent were found for this campaign.');
+
+      await update('campaigns',id,{status:'running',sent_count:0,delivered_count:0,failed_count:0});
+      let sent=0,failed=0;
+
+      for(const contact of audience) {
+        try {
+          const brand=resolveWorkspaceBranding(workspace,workspace.settings);
+          const subject=personalizeMessage(campaign.subject||('Message from '+brand.companyName),contact,brand);
+          const body=renderCompanyMessage(campaign.body||'',contact,brand);
+          const missing=templateVariables(subject+'\n'+body);
+          if(missing.length) throw new Error('Missing template values: '+missing.join(', '));
+          const requestId=crypto.randomUUID();
+          const {data,error}=await supabase.functions.invoke('engagex-send-email',{
+            body:{workspace_id:requireWorkspace(),contact_id:contact.id,subject,text:body,request_id:requestId}
+          });
+          if(error || !data?.ok) throw new Error(data?.error||error?.message||'Provider rejected email');
+          sent++;
+        } catch {
+          failed++;
+        }
+        await supabase.from('engagex_campaigns').update({sent_count:sent,failed_count:failed}).eq('workspace_id',requireWorkspace()).eq('id',id);
+      }
+
+      await supabase.from('engagex_campaigns').update({status:'completed',sent_count:sent,failed_count:failed}).eq('workspace_id',requireWorkspace()).eq('id',id);
+      await refresh('campaigns'); await refresh('messages'); await refresh('audit_logs');
+      if(!sent) throw new Error('No campaign emails were accepted by Resend.');
+    }),
     simulateCampaignRun:()=>reportError(new Error('Simulations are disabled for the live database.')),
     sendMessage:payload=>run(async()=>{
       if(payload.channel!=='email') unavailable('SMS / WhatsApp API provider');
