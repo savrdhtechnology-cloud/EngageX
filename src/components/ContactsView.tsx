@@ -1,4 +1,4 @@
-import React, { useState, useMemo, ChangeEvent } from 'react';
+import React, { useState, useMemo, useEffect, ChangeEvent } from 'react';
 import {
   ContactRound,
   Search,
@@ -22,12 +22,13 @@ import * as XLSX from 'xlsx';
 import { CommercialShell } from './CommercialShell';
 import { useApp } from '../context/AppContext';
 import { Contact } from '../types';
+import { supabase } from '../lib/supabase';
 
 const DEFAULT_WHATSAPP_GROUP_LINK = 'https://chat.whatsapp.com/KdCB01biJWTH6ihxLjFO8O';
 const DEFAULT_INVITE_MESSAGE = `Namaste {{first_name}} ji,\n\nAKBS Poultry Farming Private Limited se aapko hamare official WhatsApp updates group me join karne ka invite hai.\n\n*Join Group:* {{group_link}}\n\nYahan aapko project updates, process information aur important notices milenge.\n\nDhanyavaad,\n*AKBS Poultry Farming Private Limited*`;
 
 export const ContactsView: React.FC = () => {
-  const { contacts, templates, addContact, updateContact, deleteContact, bulkDeleteContacts, importContacts, workspaceSettings } = useApp();
+  const { contacts, templates, addContact, updateContact, deleteContact, bulkDeleteContacts, importContacts, workspaceSettings, activeWorkspace } = useApp();
 
   const [search, setSearch] = useState('');
   const [selectedTag, setSelectedTag] = useState<string>('all');
@@ -36,6 +37,76 @@ export const ContactsView: React.FC = () => {
   const [error, setError] = useState<string>('');
   const [bulkWhatsAppQueue, setBulkWhatsAppQueue] = useState<Contact[]>([]);
   const [bulkIndex, setBulkIndex] = useState(0);
+  const [directoryMode, setDirectoryMode] = useState<'prospects' | 'contacts'>('prospects');
+  const [prospects, setProspects] = useState<any[]>([]);
+  const [prospectsLoading, setProspectsLoading] = useState(false);
+  const [prospectCategory, setProspectCategory] = useState('all');
+  const [prospectCity, setProspectCity] = useState('all');
+  const [prospectProduct, setProspectProduct] = useState('all');
+  const [prospectDate, setProspectDate] = useState<'all' | 'today' | '7d' | '30d'>('all');
+
+  useEffect(() => {
+    const loadProspects = async () => {
+      if (!activeWorkspace?.id) {
+        setProspects([]);
+        return;
+      }
+      setProspectsLoading(true);
+      const { data, error } = await supabase
+        .from('engagex_prospects')
+        .select('*')
+        .eq('workspace_id', activeWorkspace.id)
+        .order('created_at', { ascending: false });
+      if (error) setError(error.message);
+      setProspects(data || []);
+      setProspectsLoading(false);
+    };
+    void loadProspects();
+  }, [activeWorkspace?.id]);
+
+  const prospectCategories = useMemo(
+    () => Array.from(new Set(prospects.map((p:any) => (p.business_type || p.category || '').trim()).filter(Boolean))).sort(),
+    [prospects]
+  );
+
+  const prospectCities = useMemo(
+    () => Array.from(new Set(prospects.map((p:any) => (p.location || p.address || '').trim()).filter(Boolean))).sort(),
+    [prospects]
+  );
+
+  const prospectProducts = useMemo(
+    () => Array.from(new Set(prospects.map((p:any) => (p.recommended_product || '').trim()).filter(Boolean))).sort(),
+    [prospects]
+  );
+
+  const filteredProspects = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    const now = new Date();
+    let cutoff: Date | null = null;
+    if (prospectDate === 'today') {
+      cutoff = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    } else if (prospectDate === '7d') {
+      cutoff = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+    } else if (prospectDate === '30d') {
+      cutoff = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+    }
+
+    return prospects.filter((p:any) => {
+      const categoryValue = (p.business_type || p.category || '').trim();
+      const cityValue = (p.location || p.address || '').trim();
+      const searchable = [
+        p.business_name, p.phone, p.email, p.website, p.address,
+        p.location, p.business_type, p.category, p.recommended_product
+      ].map((v:any) => String(v || '').toLowerCase());
+      const matchesSearch = !q || searchable.some(v => v.includes(q));
+      const matchesCategory = prospectCategory === 'all' || categoryValue === prospectCategory;
+      const matchesCity = prospectCity === 'all' || cityValue === prospectCity;
+      const matchesProduct = prospectProduct === 'all' || (p.recommended_product || '') === prospectProduct;
+      const matchesDate = !cutoff || (p.created_at && new Date(p.created_at) >= cutoff);
+      return matchesSearch && matchesCategory && matchesCity && matchesProduct && matchesDate;
+    });
+  }, [prospects, search, prospectCategory, prospectCity, prospectProduct, prospectDate]);
+
 
   const openWhatsAppInvite = (contact: Contact) => {
     const phone = normalizePhone(contact.mobile || '');
@@ -372,6 +443,27 @@ export const ContactsView: React.FC = () => {
         </div>
       )}
 
+
+      <div style={{display:'flex',gap:8,marginBottom:12,alignItems:'center',flexWrap:'wrap'}}>
+        <button
+          className={directoryMode === 'prospects' ? 'cbtn primary' : 'cbtn secondary'}
+          onClick={() => setDirectoryMode('prospects')}
+        >
+          Saved Prospects ({prospects.length})
+        </button>
+        <button
+          className={directoryMode === 'contacts' ? 'cbtn primary' : 'cbtn secondary'}
+          onClick={() => setDirectoryMode('contacts')}
+        >
+          Contacts ({contacts.length})
+        </button>
+        {directoryMode === 'prospects' && (
+          <span style={{fontSize:10,color:'#64748b'}}>
+            Google/Lead Intelligence data saved in this workspace
+          </span>
+        )}
+      </div>
+
       {/* Toolbar */}
       <div className="commercialToolbar">
         <div className="leftActions" style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
@@ -424,6 +516,35 @@ export const ContactsView: React.FC = () => {
         </div>
       </div>
 
+
+      {directoryMode === 'prospects' && (
+        <div style={{
+          display:'grid',
+          gridTemplateColumns:'repeat(4,minmax(140px,1fr))',
+          gap:8,
+          margin:'0 0 12px'
+        }}>
+          <select value={prospectCategory} onChange={e=>setProspectCategory(e.target.value)} className="searchField">
+            <option value="all">All Categories</option>
+            {prospectCategories.map((v:string)=><option key={v} value={v}>{v}</option>)}
+          </select>
+          <select value={prospectCity} onChange={e=>setProspectCity(e.target.value)} className="searchField">
+            <option value="all">All Cities / Areas</option>
+            {prospectCities.map((v:string)=><option key={v} value={v}>{v}</option>)}
+          </select>
+          <select value={prospectDate} onChange={e=>setProspectDate(e.target.value as any)} className="searchField">
+            <option value="all">All Dates</option>
+            <option value="today">Today</option>
+            <option value="7d">Last 7 Days</option>
+            <option value="30d">Last 30 Days</option>
+          </select>
+          <select value={prospectProduct} onChange={e=>setProspectProduct(e.target.value)} className="searchField">
+            <option value="all">All Recommended Products</option>
+            {prospectProducts.map((v:string)=><option key={v} value={v}>{v}</option>)}
+          </select>
+        </div>
+      )}
+
       {/* Bulk Action Bar */}
       {selectedIds.length > 0 && (
         <div className="bulkBar">
@@ -456,185 +577,213 @@ export const ContactsView: React.FC = () => {
       {/* Metric Grid */}
       <div className="metricGrid">
         <article>
-          <span>TOTAL CONTACTS</span>
-          <strong>{contacts.length}</strong>
-          <small>Audience repository</small>
+          <span>{directoryMode === 'prospects' ? 'SAVED PROSPECTS' : 'TOTAL CONTACTS'}</span>
+          <strong>{directoryMode === 'prospects' ? prospects.length : contacts.length}</strong>
+          <small>{directoryMode === 'prospects' ? 'Lead Intelligence repository' : 'Audience repository'}</small>
         </article>
         <article>
           <span>FILTERED RESULTS</span>
-          <strong>{filteredContacts.length}</strong>
+          <strong>{directoryMode === 'prospects' ? filteredProspects.length : filteredContacts.length}</strong>
           <small>Active search view</small>
         </article>
         <article>
           <span>WHATSAPP OPT-IN</span>
           <strong style={{ color: '#0284c7' }}>
-            {contacts.filter((c) => c.whatsapp_consent).length}
+            {directoryMode === 'prospects' ? prospects.filter((p:any) => !!p.phone).length : contacts.filter((c) => c.whatsapp_consent).length}
           </strong>
-          <small>Reachable via Cloud API</small>
+          <small>{directoryMode === 'prospects' ? 'Prospects with public phone' : 'Reachable via Cloud API'}</small>
         </article>
         <article>
           <span>SMS & EMAIL OPT-IN</span>
           <strong>
-            {contacts.filter((c) => c.sms_consent || c.email_consent).length}
+            {directoryMode === 'prospects' ? prospects.filter((p:any) => !!p.email || !!p.website).length : contacts.filter((c) => c.sms_consent || c.email_consent).length}
           </strong>
-          <small>Compliant broadcast targets</small>
+          <small>{directoryMode === 'prospects' ? 'Prospects with email / website' : 'Compliant broadcast targets'}</small>
         </article>
       </div>
 
-      {/* Contacts Table Panel */}
-      <section className="panel">
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-          <div>
-            <h3>Contact Directory</h3>
-            <p>Every messaging dispatch strictly respects WhatsApp, SMS, and Email opt-in consent flags.</p>
-          </div>
-          <span style={{ fontSize: '10px', color: '#64748b' }}>
-            Showing {filteredContacts.length} of {contacts.length} records
-          </span>
-        </div>
-
-        {filteredContacts.length === 0 ? (
-          <div className="emptyBox">
+      {/* Directory Panel */}
+      {directoryMode === 'prospects' ? (
+        <section className="panel">
+          <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:10,gap:12,flexWrap:'wrap'}}>
             <div>
-              <ContactRound size={34} style={{ margin: '0 auto 10px', color: '#94a3b8' }} />
-              <b>No matching contacts found</b>
-              <p>Try clearing your search filters or import an audience spreadsheet.</p>
-              <button
-                className="cbtn primary"
-                onClick={handleOpenNew}
-                style={{ marginTop: '12px', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
-              >
-                <Plus size={14} /> Add Contact
-              </button>
+              <h3>Saved Prospect Directory</h3>
+              <p>Category, city/area, date and recommended-product filters for saved Lead Intelligence data.</p>
             </div>
+            <span style={{fontSize:10,color:'#64748b'}}>Showing {filteredProspects.length} of {prospects.length} saved prospects</span>
           </div>
-        ) : (
-          <div className="responsiveTable">
-            <table className="dataTable">
-              <thead>
-                <tr>
-                  <th style={{ width: '30px' }}>
-                    <input
-                      type="checkbox"
-                      checked={selectedIds.length === filteredContacts.length && filteredContacts.length > 0}
-                      onChange={(e) => handleToggleSelectAll(e.target.checked)}
-                    />
-                  </th>
-                  <th>Contact Profile</th>
-                  <th>Phone / Email</th>
-                  <th>Company & City</th>
-                  <th>Tags</th>
-                  <th>Channel Consent</th>
-                  <th>Status</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredContacts.map((c) => (
-                  <tr key={c.id}>
-                    <td>
+
+          {prospectsLoading ? (
+            <div className="emptyBox"><div><b>Loading saved prospects…</b></div></div>
+          ) : filteredProspects.length === 0 ? (
+            <div className="emptyBox">
+              <div>
+                <ContactRound size={34} style={{ margin: '0 auto 10px', color: '#94a3b8' }} />
+                <b>No saved prospects match these filters</b>
+                <p>Save businesses from EngageX Lead Intelligence, or clear the current filters.</p>
+              </div>
+            </div>
+          ) : (
+            <div className="responsiveTable">
+              <table className="dataTable">
+                <thead>
+                  <tr>
+                    <th>Business</th>
+                    <th>Category</th>
+                    <th>City / Area</th>
+                    <th>Phone / Email</th>
+                    <th>Source</th>
+                    <th>Lead Score</th>
+                    <th>Recommended Product</th>
+                    <th>Saved Date</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredProspects.map((p:any) => (
+                    <tr key={p.id}>
+                      <td>
+                        <b>{p.business_name}</b>
+                        <small className="cellSub">{p.website || p.source_url || '—'}</small>
+                      </td>
+                      <td>{p.business_type || p.category || '—'}</td>
+                      <td>
+                        <b>{p.location || '—'}</b>
+                        <small className="cellSub">{p.address || ''}</small>
+                      </td>
+                      <td>
+                        <div style={{display:'flex',flexDirection:'column'}}>
+                          <span style={{fontSize:11,fontWeight:700}}>{p.phone || '—'}</span>
+                          <small className="cellSub">{p.email || '—'}</small>
+                        </div>
+                      </td>
+                      <td>{p.source === 'google_maps' ? 'Google Maps' : (p.source || '—')}</td>
+                      <td>
+                        <span className="status" style={{
+                          background:(p.lead_score || 0) >= 80 ? '#dcfce7' : '#fff7ed',
+                          color:(p.lead_score || 0) >= 80 ? '#15803d' : '#c2410c'
+                        }}>
+                          {p.lead_score ?? '—'}{p.lead_score != null ? '%' : ''}
+                        </span>
+                      </td>
+                      <td><b style={{color:'#0369a1'}}>{p.recommended_product || '—'}</b></td>
+                      <td>{p.created_at ? new Date(p.created_at).toLocaleDateString('en-IN') : '—'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </section>
+      ) : (
+        <section className="panel">
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+            <div>
+              <h3>Contact Directory</h3>
+              <p>Every messaging dispatch strictly respects WhatsApp, SMS, and Email opt-in consent flags.</p>
+            </div>
+            <span style={{ fontSize: '10px', color: '#64748b' }}>
+              Showing {filteredContacts.length} of {contacts.length} records
+            </span>
+          </div>
+
+          {filteredContacts.length === 0 ? (
+            <div className="emptyBox">
+              <div>
+                <ContactRound size={34} style={{ margin: '0 auto 10px', color: '#94a3b8' }} />
+                <b>No matching contacts found</b>
+                <p>Try clearing your search filters or import an audience spreadsheet.</p>
+                <button
+                  className="cbtn primary"
+                  onClick={handleOpenNew}
+                  style={{ marginTop: '12px', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+                >
+                  <Plus size={14} /> Add Contact
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="responsiveTable">
+              <table className="dataTable">
+                <thead>
+                  <tr>
+                    <th style={{ width: '30px' }}>
                       <input
                         type="checkbox"
-                        checked={selectedIds.includes(c.id)}
-                        onChange={() => handleToggleSelectOne(c.id)}
+                        checked={selectedIds.length === filteredContacts.length && filteredContacts.length > 0}
+                        onChange={(e) => handleToggleSelectAll(e.target.checked)}
                       />
-                    </td>
-                    <td>
-                      <b>{c.name}</b>
-                      <small className="cellSub">{c.job_title || 'Customer'}</small>
-                    </td>
-                    <td>
-                      <div style={{ display: 'flex', flexDirection: 'column' }}>
-                        <span style={{ fontSize: '10px', fontWeight: 600 }}>{c.mobile || '—'}</span>
-                        <small className="cellSub">{c.email || '—'}</small>
-                      </div>
-                    </td>
-                    <td>
-                      <b>{c.company || '—'}</b>
-                      <small className="cellSub">{c.city || '—'}</small>
-                    </td>
-                    <td>
-                      <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
-                        {c.tags.slice(0, 2).map((tag) => (
-                          <span
-                            key={tag}
-                            style={{
-                              fontSize: '8px',
-                              background: '#f1f5f9',
-                              color: '#475569',
-                              padding: '2px 6px',
-                              borderRadius: '4px',
-                            }}
-                          >
-                            #{tag}
-                          </span>
-                        ))}
-                        {c.tags.length > 2 && (
-                          <span style={{ fontSize: '8px', color: '#94a3b8' }}>+{c.tags.length - 2}</span>
-                        )}
-                      </div>
-                    </td>
-                    <td>
-                      <div className="consentBadges">
-                        <span className={c.whatsapp_consent ? 'on' : ''} title="WhatsApp Opt-in">
-                          WA
-                        </span>
-                        <span className={c.sms_consent ? 'on' : ''} title="SMS Opt-in">
-                          SMS
-                        </span>
-                        <span className={c.email_consent ? 'on' : ''} title="Email Opt-in">
-                          Email
-                        </span>
-                      </div>
-                    </td>
-                    <td>
-                      <span
-                        className="status"
-                        style={{
-                          background: c.status === 'active' ? '#dcfce7' : '#fee2e2',
-                          color: c.status === 'active' ? '#15803d' : '#991b1b',
-                        }}
-                      >
-                        {c.status.toUpperCase()}
-                      </span>
-                    </td>
-                    <td>
-                      <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
-                        <button
-                          className="tableAction"
-                          onClick={() => openWhatsAppInvite(c)}
-                          title="Open WhatsApp with AKBS group invite prefilled"
-                          style={{ color: '#15803d' }}
-                        >
-                          WhatsApp Invite
-                        </button>
-                        <button
-                          className="tableAction"
-                          onClick={() => void copyGroupInvite(c)}
-                          title="Copy AKBS WhatsApp group invite message"
-                        >
-                          Copy Invite
-                        </button>
-                        <button className="tableAction" onClick={() => handleOpenEdit(c)}>
-                          Edit
-                        </button>
-                        <button
-                          className="tableAction dangerText"
-                          onClick={() => {
-                            if (confirm(`Delete contact ${c.name}?`)) deleteContact(c.id);
-                          }}
-                        >
-                          Delete
-                        </button>
-                      </div>
-                    </td>
+                    </th>
+                    <th>Contact Profile</th>
+                    <th>Phone / Email</th>
+                    <th>Company & City</th>
+                    <th>Tags</th>
+                    <th>Channel Consent</th>
+                    <th>Status</th>
+                    <th>Actions</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </section>
+                </thead>
+                <tbody>
+                  {filteredContacts.map((c) => (
+                    <tr key={c.id}>
+                      <td>
+                        <input
+                          type="checkbox"
+                          checked={selectedIds.includes(c.id)}
+                          onChange={() => handleToggleSelectOne(c.id)}
+                        />
+                      </td>
+                      <td>
+                        <b>{c.name}</b>
+                        <small className="cellSub">{c.job_title || 'Customer'}</small>
+                      </td>
+                      <td>
+                        <div style={{ display: 'flex', flexDirection: 'column' }}>
+                          <span style={{ fontSize: '10px', fontWeight: 600 }}>{c.mobile || '—'}</span>
+                          <small className="cellSub">{c.email || '—'}</small>
+                        </div>
+                      </td>
+                      <td>
+                        <b>{c.company || '—'}</b>
+                        <small className="cellSub">{c.city || '—'}</small>
+                      </td>
+                      <td>
+                        <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
+                          {c.tags.slice(0, 2).map((tag) => (
+                            <span key={tag} style={{fontSize:'8px',background:'#f1f5f9',color:'#475569',padding:'2px 6px',borderRadius:'4px'}}>
+                              #{tag}
+                            </span>
+                          ))}
+                          {c.tags.length > 2 && <span style={{fontSize:'8px',color:'#94a3b8'}}>+{c.tags.length - 2}</span>}
+                        </div>
+                      </td>
+                      <td>
+                        <div className="consentBadges">
+                          <span className={c.whatsapp_consent ? 'on' : ''}>WA</span>
+                          <span className={c.sms_consent ? 'on' : ''}>SMS</span>
+                          <span className={c.email_consent ? 'on' : ''}>Email</span>
+                        </div>
+                      </td>
+                      <td>
+                        <span className="status" style={{background:c.status==='active'?'#dcfce7':'#fee2e2',color:c.status==='active'?'#15803d':'#991b1b'}}>
+                          {c.status.toUpperCase()}
+                        </span>
+                      </td>
+                      <td>
+                        <div style={{display:'flex',gap:6,flexWrap:'wrap'}}>
+                          <button className="tableAction" onClick={() => openWhatsAppInvite(c)} style={{color:'#15803d'}}>WhatsApp Invite</button>
+                          <button className="tableAction" onClick={() => void copyGroupInvite(c)}>Copy Invite</button>
+                          <button className="tableAction" onClick={() => handleOpenEdit(c)}>Edit</button>
+                          <button className="tableAction dangerText" onClick={() => { if (confirm(`Delete contact ${c.name}?`)) deleteContact(c.id); }}>Delete</button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </section>
+      )}
 
       {bulkWhatsAppQueue.length > 0 && (
         <div className="modalBackdrop">
