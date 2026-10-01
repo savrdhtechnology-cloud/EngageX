@@ -252,27 +252,28 @@ export const DataExtractorView: React.FC = () => {
       title="EngageX Lead Intelligence"
       subtitle="Discover, organize and qualify business prospects by source, category and location for Savrdh Technology outreach workflows."
     >
-      <div style={{ display:'grid', gridTemplateColumns:'repeat(4,minmax(0,1fr))', gap:12, marginBottom:14 }}>
+      <div style={{maxWidth:1540,margin:'0 auto',padding:'2px 2px 24px'}}>
+      <div style={{ display:'grid', gridTemplateColumns:'repeat(4,minmax(0,1fr))', gap:16, marginBottom:18 }}>
         {[
           ['TOTAL PROSPECTS', kpis.total, 'Saved business records'],
           ['REVIEW REQUIRED', kpis.review, 'Check contact basis before outreach'],
           ['OUTREACH ALLOWED', kpis.allowed, 'Approved for contact workflow'],
           ['CONVERTED', kpis.converted, 'Moved into CRM pipeline']
         ].map(([label,value,note]) => (
-          <article key={String(label)} style={{background:'#fff',border:'1px solid #dfe9ed',borderRadius:13,padding:'14px 16px'}}>
-            <span style={{fontSize:8,fontWeight:900,color:'#78909c',letterSpacing:.7}}>{label}</span>
-            <strong style={{display:'block',fontSize:24,margin:'6px 0 3px'}}>{Number(value).toLocaleString()}</strong>
-            <small style={{fontSize:8,color:'#94a3b8'}}>{note}</small>
+          <article key={String(label)} style={{background:'#fff',border:'1px solid #dfe9ed',borderRadius:16,padding:'18px 20px',minHeight:112,boxShadow:'0 8px 24px rgba(15,23,42,.04)'}}>
+            <span style={{fontSize:10,fontWeight:900,color:'#78909c',letterSpacing:.8}}>{label}</span>
+            <strong style={{display:'block',fontSize:32,lineHeight:1.05,margin:'9px 0 6px'}}>{Number(value).toLocaleString()}</strong>
+            <small style={{fontSize:10,color:'#94a3b8'}}>{note}</small>
           </article>
         ))}
       </div>
 
-      <section style={{background:'#fff',border:'1px solid #dfe9ed',borderRadius:14,padding:16,marginBottom:14}}>
+      <section style={{background:'#fff',border:'1px solid #dfe9ed',borderRadius:16,padding:20,marginBottom:18,boxShadow:'0 8px 24px rgba(15,23,42,.035)'}}>
         <div style={{display:'flex',justifyContent:'space-between',gap:12,alignItems:'center',flexWrap:'wrap'}}>
           <div>
-            <small style={{fontSize:8,color:'#64748b',fontWeight:900}}>SOURCE CONNECTORS</small>
-            <h3 style={{margin:'4px 0 4px',fontSize:15}}>Prospecting Sources</h3>
-            <p style={{margin:0,fontSize:9,color:'#64748b'}}>Google Places API powers live business discovery with structured business details.</p>
+            <small style={{fontSize:10,color:'#64748b',fontWeight:900,letterSpacing:.7}}>SOURCE CONNECTORS</small>
+            <h3 style={{margin:'5px 0 5px',fontSize:20}}>Prospecting Sources</h3>
+            <p style={{margin:0,fontSize:11,color:'#64748b'}}>Google Places API powers live business discovery with structured business details.</p>
           </div>
           <div style={{display:'flex',gap:8,flexWrap:'wrap'}}>
             {[
@@ -280,22 +281,22 @@ export const DataExtractorView: React.FC = () => {
               ['IndiaMART','API / export connector ready'],
               ['Justdial','Licensed feed / export ready']
             ].map(([name,status]) => (
-              <div key={name} style={{border:'1px solid #e2e8f0',borderRadius:10,padding:'8px 10px',minWidth:150}}>
-                <b style={{display:'block',fontSize:10}}>{name}</b>
-                <small style={{fontSize:8,color:'#64748b'}}>{status}</small>
+              <div key={name} style={{border:'1px solid #e2e8f0',borderRadius:12,padding:'12px 14px',minWidth:180}}>
+                <b style={{display:'block',fontSize:12}}>{name}</b>
+                <small style={{fontSize:10,color:'#64748b'}}>{status}</small>
               </div>
             ))}
           </div>
         </div>
       </section>
 
-      <section style={{background:'#fff',border:'1px solid #dfe9ed',borderRadius:14,padding:16,marginBottom:14}}>
-        <div style={{display:'grid',gridTemplateColumns:'1.5fr 1fr 1fr 1fr 1fr auto auto auto',gap:8,alignItems:'center'}}>
+      <section style={{background:'#fff',border:'1px solid #dfe9ed',borderRadius:16,padding:20,marginBottom:18,boxShadow:'0 8px 24px rgba(15,23,42,.035)'}}>
+        <div style={{display:'grid',gridTemplateColumns:'1.6fr .9fr 1.1fr 1.15fr 1.05fr auto auto auto',gap:8,alignItems:'center'}}>
           <div style={{position:'relative'}}>
-            <Search size={15} style={{position:'absolute',left:11,top:11,color:'#94a3b8'}}/>
-            <input value={query} onChange={e=>setQuery(e.target.value)} placeholder="Search company, phone, email, website..." style={{width:'100%',padding:'10px 10px 10px 34px',border:'1px solid #dbe7ee',borderRadius:9}}/>
+            <Search size={17} style={{position:'absolute',left:12,top:14,color:'#94a3b8'}}/>
+            <input value={query} onChange={e=>setQuery(e.target.value)} placeholder="Search company, phone, email, website..." style={{width:'100%',padding:'13px 12px 13px 38px',border:'1px solid #dbe7ee',borderRadius:9}}/>
           </div>
-          <select value={source} onChange={e=>setSource(e.target.value as any)} style={{padding:10,border:'1px solid #dbe7ee',borderRadius:9}}>
+          <select value={source} onChange={e=>setSource(e.target.value as any)} style={{padding:13,border:'1px solid #dbe7ee',borderRadius:10,fontSize:12}}>
             <option value="all">All sources</option>
             <option value="google_maps">Google Maps</option>
             <option value="indiamart">IndiaMART</option>
@@ -303,9 +304,9 @@ export const DataExtractorView: React.FC = () => {
             <option value="csv">CSV Import</option>
             <option value="manual">Manual</option>
           </select>
-          <input value={category} onChange={e=>setCategory(e.target.value)} placeholder="Business / Category (optional)" style={{padding:10,border:'1px solid #dbe7ee',borderRadius:9}}/>
-          <input value={area} onChange={e=>setArea(e.target.value)} placeholder="Area / Locality e.g. Mandideep" style={{padding:10,border:'1px solid #dbe7ee',borderRadius:9}}/>
-          <input value={location} onChange={e=>setLocation(e.target.value)} placeholder="City e.g. Bhopal" style={{padding:10,border:'1px solid #dbe7ee',borderRadius:9}}/>
+          <input value={category} onChange={e=>setCategory(e.target.value)} placeholder="Business / Category (optional)" style={{padding:13,border:'1px solid #dbe7ee',borderRadius:10,fontSize:12}}/>
+          <input value={area} onChange={e=>setArea(e.target.value)} placeholder="Area / Locality e.g. Mandideep" style={{padding:13,border:'1px solid #dbe7ee',borderRadius:10,fontSize:12}}/>
+          <input value={location} onChange={e=>setLocation(e.target.value)} placeholder="City e.g. Bhopal" style={{padding:13,border:'1px solid #dbe7ee',borderRadius:10,fontSize:12}}/>
           <button onClick={runLiveSearch} disabled={searching} className="primaryBtn small"><Search size={14}/> {searching ? 'Searching…' : 'Search Live'}</button>
           <button onClick={()=>setShowAdd(v=>!v)} className="primaryBtn small"><Plus size={14}/> Add</button>
           <button onClick={exportCsv} style={{padding:'9px 10px',border:'1px solid #dbe7ee',borderRadius:9,background:'#fff',cursor:'pointer',fontWeight:800,fontSize:10,display:'inline-flex',gap:5,alignItems:'center'}}><Download size={13}/> Export</button>
@@ -313,11 +314,11 @@ export const DataExtractorView: React.FC = () => {
       </section>
 
       {liveResults.length > 0 && (
-        <section style={{background:'#fff',border:'1px solid #dfe9ed',borderRadius:14,overflow:'hidden',marginBottom:14}}>
-          <div style={{padding:'12px 14px',borderBottom:'1px solid #edf2f4',display:'flex',justifyContent:'space-between',alignItems:'center',gap:10,flexWrap:'wrap'}}>
+        <section style={{background:'#fff',border:'1px solid #dfe9ed',borderRadius:16,overflow:'hidden',marginBottom:18,boxShadow:'0 10px 28px rgba(15,23,42,.04)'}}>
+          <div style={{padding:'16px 18px',borderBottom:'1px solid #edf2f4',display:'flex',justifyContent:'space-between',alignItems:'center',gap:12,flexWrap:'wrap'}}>
             <div>
-              <b style={{fontSize:11}}>Live Google Maps Results</b>
-              <small style={{display:'block',fontSize:8,color:'#94a3b8',marginTop:2}}>{liveResults.length} Google Maps businesses found for {[area, location].filter(Boolean).join(', ') || 'your search'} · select records to save</small>
+              <b style={{fontSize:15}}>Live Google Maps Results</b>
+              <small style={{display:'block',fontSize:10,color:'#94a3b8',marginTop:2}}>{liveResults.length} Google Maps businesses found for {[area, location].filter(Boolean).join(', ') || 'your search'} · select records to save</small>
             </div>
             <div style={{display:'flex',gap:8}}>
               {nextPageToken && <button onClick={loadMoreResults} disabled={searching} className="primaryBtn small" style={{background:'#fff',color:'#0f7490',border:'1px solid #bfe4ee'}}>{searching ? 'Loading…' : 'Load More'}</button>}
@@ -325,7 +326,7 @@ export const DataExtractorView: React.FC = () => {
             </div>
           </div>
           <div style={{overflowX:'auto'}}>
-            <table className="dashTable" style={{marginTop:0}}>
+            <table className="dashTable" style={{marginTop:0,fontSize:11}}>
               <thead><tr><th></th><th>Business</th><th>Business Type</th><th>Phone</th><th>Email</th><th>Source</th><th>Match</th><th>Lead Score</th><th>Recommended Product</th></tr></thead>
               <tbody>
                 {liveResults.map((r:any,i:number)=>{
@@ -355,25 +356,25 @@ export const DataExtractorView: React.FC = () => {
       {showAdd && (
         <form onSubmit={saveManual} style={{background:'#fff',border:'1px solid #dfe9ed',borderRadius:14,padding:16,marginBottom:14}}>
           <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:9}}>
-            <select value={form.source} onChange={e=>setForm({...form,source:e.target.value as Prospect['source']})} style={{padding:10,border:'1px solid #dbe7ee',borderRadius:9}}>
+            <select value={form.source} onChange={e=>setForm({...form,source:e.target.value as Prospect['source']})} style={{padding:13,border:'1px solid #dbe7ee',borderRadius:10,fontSize:12}}>
               <option value="manual">Manual</option><option value="csv">CSV Import</option><option value="google_maps">Google Maps</option><option value="indiamart">IndiaMART</option><option value="justdial">Justdial</option>
             </select>
-            <input required value={form.business_name} onChange={e=>setForm({...form,business_name:e.target.value})} placeholder="Business name" style={{padding:10,border:'1px solid #dbe7ee',borderRadius:9}}/>
-            <input value={form.category} onChange={e=>setForm({...form,category:e.target.value})} placeholder="Category" style={{padding:10,border:'1px solid #dbe7ee',borderRadius:9}}/>
-            <input value={form.location} onChange={e=>setForm({...form,location:e.target.value})} placeholder="Location" style={{padding:10,border:'1px solid #dbe7ee',borderRadius:9}}/>
-            <input value={form.phone} onChange={e=>setForm({...form,phone:e.target.value})} placeholder="Public business phone" style={{padding:10,border:'1px solid #dbe7ee',borderRadius:9}}/>
-            <input value={form.email} onChange={e=>setForm({...form,email:e.target.value})} placeholder="Public business email" style={{padding:10,border:'1px solid #dbe7ee',borderRadius:9}}/>
-            <input value={form.website} onChange={e=>setForm({...form,website:e.target.value})} placeholder="Website" style={{padding:10,border:'1px solid #dbe7ee',borderRadius:9}}/>
-            <input value={form.source_url} onChange={e=>setForm({...form,source_url:e.target.value})} placeholder="Source URL" style={{padding:10,border:'1px solid #dbe7ee',borderRadius:9}}/>
+            <input required value={form.business_name} onChange={e=>setForm({...form,business_name:e.target.value})} placeholder="Business name" style={{padding:13,border:'1px solid #dbe7ee',borderRadius:10,fontSize:12}}/>
+            <input value={form.category} onChange={e=>setForm({...form,category:e.target.value})} placeholder="Category" style={{padding:13,border:'1px solid #dbe7ee',borderRadius:10,fontSize:12}}/>
+            <input value={form.location} onChange={e=>setForm({...form,location:e.target.value})} placeholder="Location" style={{padding:13,border:'1px solid #dbe7ee',borderRadius:10,fontSize:12}}/>
+            <input value={form.phone} onChange={e=>setForm({...form,phone:e.target.value})} placeholder="Public business phone" style={{padding:13,border:'1px solid #dbe7ee',borderRadius:10,fontSize:12}}/>
+            <input value={form.email} onChange={e=>setForm({...form,email:e.target.value})} placeholder="Public business email" style={{padding:13,border:'1px solid #dbe7ee',borderRadius:10,fontSize:12}}/>
+            <input value={form.website} onChange={e=>setForm({...form,website:e.target.value})} placeholder="Website" style={{padding:13,border:'1px solid #dbe7ee',borderRadius:10,fontSize:12}}/>
+            <input value={form.source_url} onChange={e=>setForm({...form,source_url:e.target.value})} placeholder="Source URL" style={{padding:13,border:'1px solid #dbe7ee',borderRadius:10,fontSize:12}}/>
           </div>
           <div style={{display:'flex',justifyContent:'flex-end',marginTop:10}}><button className="primaryBtn small" type="submit">Save Prospect</button></div>
         </form>
       )}
 
-      <section style={{background:'#fff',border:'1px solid #dfe9ed',borderRadius:14,overflow:'hidden'}}>
-        <div style={{padding:'12px 14px',borderBottom:'1px solid #edf2f4',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+      <section style={{background:'#fff',border:'1px solid #dfe9ed',borderRadius:16,overflow:'hidden',boxShadow:'0 10px 28px rgba(15,23,42,.04)'}}>
+        <div style={{padding:'16px 18px',borderBottom:'1px solid #edf2f4',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
           <div>
-            <b style={{fontSize:11}}>Prospect Database</b>
+            <b style={{fontSize:15}}>Prospect Database</b>
             <small style={{display:'block',fontSize:8,color:'#94a3b8',marginTop:2}}>{filtered.length} visible records</small>
           </div>
           <div style={{display:'flex',gap:6,alignItems:'center',fontSize:8,color:'#64748b'}}><ShieldCheck size={13}/> Deduplication + outreach review enabled</div>
@@ -400,6 +401,7 @@ export const DataExtractorView: React.FC = () => {
           </table>
         </div>
       </section>
+      </div>
     </CommercialShell>
   );
 };
