@@ -45,6 +45,88 @@ export const ContactsView: React.FC = () => {
   const [prospectProduct, setProspectProduct] = useState('all');
   const [prospectDate, setProspectDate] = useState<'all' | 'today' | '7d' | '30d'>('all');
   const [selectedProspectIds, setSelectedProspectIds] = useState<string[]>([]);
+  const normProspectPhone = (v:any) => String(v || '').replace(/[^0-9]/g, '');
+  const normProspectEmail = (v:any) => String(v || '').trim().toLowerCase();
+
+  const crmPhoneSet = useMemo(
+    () => new Set(contacts.map((x:any) => normProspectPhone(x.mobile)).filter(Boolean)),
+    [contacts]
+  );
+  const crmEmailSet = useMemo(
+    () => new Set(contacts.map((x:any) => normProspectEmail(x.email)).filter(Boolean)),
+    [contacts]
+  );
+
+  const prospectInCrm = (p:any) => {
+    const phone = normProspectPhone(p.phone);
+    const email = normProspectEmail(p.email);
+    return (!!phone && crmPhoneSet.has(phone)) || (!!email && crmEmailSet.has(email));
+  };
+
+  const prospectToContact = (p:any) => ({
+    name: p.business_name || 'Business Prospect',
+    first_name: String(p.business_name || 'Business').trim().split(/\s+/)[0],
+    last_name: '',
+    mobile: p.phone || '',
+    email: p.email || '',
+    company: p.business_name || '',
+    job_title: p.business_type || p.category || 'Business Prospect',
+    city: p.location || '',
+    state: '',
+    country: 'India',
+    tags: ['lead-intelligence', String(p.business_type || p.category || 'prospect').toLowerCase()],
+    notes: [
+      'Imported from EngageX Lead Intelligence',
+      p.address ? 'Address: ' + p.address : '',
+      p.website ? 'Website: ' + p.website : '',
+      p.source_url ? 'Source: ' + p.source_url : '',
+      p.lead_score != null ? 'Lead Score: ' + p.lead_score + '%' : '',
+      p.recommended_product ? 'Recommended Product: ' + p.recommended_product : ''
+    ].filter(Boolean).join('\n'),
+    status: 'active' as const,
+    whatsapp_consent: false,
+    sms_consent: false,
+    email_consent: false,
+  });
+
+  const addProspectToContacts = async (p:any) => {
+    if (!p.phone && !p.email) {
+      setError('This prospect has no phone or email, so it cannot be added to Contacts.');
+      return;
+    }
+    if (prospectInCrm(p)) {
+      setNotice('This prospect is already in Contacts.');
+      return;
+    }
+    try {
+      await addContact(prospectToContact(p));
+      setNotice(p.business_name + ' added to Contacts.');
+    } catch (e:any) {
+      setError(e?.message || 'Could not add prospect to Contacts.');
+    }
+  };
+
+  const addSelectedProspectsToContacts = async () => {
+    const selected = filteredProspects.filter((p:any) => selectedProspectIds.includes(p.id));
+    const eligible = selected.filter((p:any) => (p.phone || p.email) && !prospectInCrm(p));
+    if (!eligible.length) {
+      setError('No selected prospects are eligible to add. They may already be in Contacts or have no phone/email.');
+      return;
+    }
+    let added = 0;
+    let skipped = 0;
+    for (const p of eligible) {
+      try {
+        await addContact(prospectToContact(p));
+        added++;
+      } catch {
+        skipped++;
+      }
+    }
+    setNotice(added + ' prospect(s) added to Contacts' + (skipped ? ' · ' + skipped + ' skipped.' : '.'));
+    setSelectedProspectIds([]);
+  };
+
 
   useEffect(() => {
     const loadProspects = async () => {
@@ -640,13 +722,21 @@ export const ContactsView: React.FC = () => {
             <div style={{display:'flex',gap:8,alignItems:'center',flexWrap:'wrap'}}>
               <span style={{fontSize:10,color:'#64748b'}}>Showing {filteredProspects.length} of {prospects.length} saved prospects</span>
               {selectedProspectIds.length > 0 && (
-                <button
-                  className="cbtn secondary"
-                  onClick={deleteSelectedProspects}
-                  style={{color:'#b91c1c',borderColor:'#fecaca'}}
-                >
-                  Delete Selected ({selectedProspectIds.length})
-                </button>
+                <>
+                  <button
+                    className="cbtn primary"
+                    onClick={addSelectedProspectsToContacts}
+                  >
+                    Add Selected to Contacts ({selectedProspectIds.length})
+                  </button>
+                  <button
+                    className="cbtn secondary"
+                    onClick={deleteSelectedProspects}
+                    style={{color:'#b91c1c',borderColor:'#fecaca'}}
+                  >
+                    Delete Selected ({selectedProspectIds.length})
+                  </button>
+                </>
               )}
             </div>
           </div>
@@ -681,6 +771,7 @@ export const ContactsView: React.FC = () => {
                     <th>Lead Score</th>
                     <th>Recommended Product</th>
                     <th>Saved Date</th>
+                    <th>CRM Action</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -719,6 +810,20 @@ export const ContactsView: React.FC = () => {
                       </td>
                       <td><b style={{color:'#0369a1'}}>{p.recommended_product || '—'}</b></td>
                       <td>{p.created_at ? new Date(p.created_at).toLocaleDateString('en-IN') : '—'}</td>
+                      <td>
+                        {prospectInCrm(p) ? (
+                          <span className="status" style={{background:'#dcfce7',color:'#15803d'}}>IN CONTACTS</span>
+                        ) : (
+                          <button
+                            className="cbtn primary"
+                            onClick={() => void addProspectToContacts(p)}
+                            disabled={!p.phone && !p.email}
+                            style={{fontSize:9,padding:'7px 9px',opacity:(!p.phone && !p.email)?0.5:1}}
+                          >
+                            Add to Contacts
+                          </button>
+                        )}
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -822,6 +927,31 @@ export const ContactsView: React.FC = () => {
                       </td>
                       <td>
                         <div style={{display:'flex',gap:6,flexWrap:'wrap'}}>
+                          <button
+                            className="tableAction"
+                            onClick={() => openWhatsAppInvite(c)}
+                            disabled={!c.whatsapp_consent}
+                            title={c.whatsapp_consent ? 'Open WhatsApp' : 'WhatsApp consent required'}
+                            style={{color:c.whatsapp_consent?'#15803d':'#94a3b8'}}
+                          >
+                            WhatsApp
+                          </button>
+                          <button
+                            className="tableAction"
+                            disabled={!c.email_consent || !c.email}
+                            title={c.email_consent ? 'Open email composer' : 'Email consent required'}
+                            onClick={() => { if (c.email_consent && c.email) window.location.href = 'mailto:' + c.email; }}
+                          >
+                            Email
+                          </button>
+                          <button
+                            className="tableAction"
+                            disabled={!c.sms_consent || !c.mobile}
+                            title={c.sms_consent ? 'Open SMS composer' : 'SMS consent required'}
+                            onClick={() => { if (c.sms_consent && c.mobile) window.location.href = 'sms:' + c.mobile; }}
+                          >
+                            SMS
+                          </button>
                           <button className="tableAction" onClick={() => openWhatsAppInvite(c)} style={{color:'#15803d'}}>WhatsApp Invite</button>
                           <button className="tableAction" onClick={() => void copyGroupInvite(c)}>Copy Invite</button>
                           <button className="tableAction" onClick={() => handleOpenEdit(c)}>Edit</button>
