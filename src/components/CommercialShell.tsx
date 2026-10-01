@@ -22,6 +22,7 @@ import {
   Clock,
   ChevronRight,
   ShieldCheck,
+  DatabaseZap,
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { AppNotification } from '../types';
@@ -29,6 +30,7 @@ import { AppNotification } from '../types';
 const menuItems = [
   { id: 'dashboard', name: 'Dashboard', icon: LayoutDashboard },
   { id: 'clients', name: 'Clients', icon: Building2 },
+  { id: 'data-extractor', name: 'Data Extractor', icon: DatabaseZap },
   { id: 'contacts', name: 'Contacts', icon: ContactRound },
   { id: 'campaigns', name: 'Campaigns', icon: Megaphone },
   { id: 'messages', name: 'Live Inbox', icon: MessageCircle, badge: 'Live' },
@@ -234,7 +236,7 @@ export const CommercialShell: React.FC<{
         )}
 
         <nav>
-          {(activeWorkspace?.slug && activeWorkspace.slug !== 'savrdh-engagex' ? menuItems.filter(item => item.id !== 'clients') : menuItems).map((item) => {
+          {(activeWorkspace?.slug && activeWorkspace.slug !== 'savrdh-engagex' ? menuItems.filter(item => !['clients','data-extractor'].includes(item.id)) : menuItems).map((item) => {
             const Icon = item.icon;
             const isActive = appTab === item.id;
             return (
