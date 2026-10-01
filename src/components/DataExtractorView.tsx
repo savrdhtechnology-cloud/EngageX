@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Building2, Check, Download, MapPin, MessageCircle, Plus, Search, UserPlus } from 'lucide-react';
 import { CommercialShell } from './CommercialShell';
+import * as XLSX from 'xlsx';
 import { supabase } from '../lib/supabase';
 import { useApp } from '../context/AppContext';
 
@@ -69,6 +70,7 @@ export const DataExtractorView: React.FC = () => {
   const [searching, setSearching] = useState(false);
   const [selectedLive, setSelectedLive] = useState<Record<string, boolean>>({});
   const [addedCrmKeys, setAddedCrmKeys] = useState<Set<string>>(new Set());
+  const [resultView, setResultView] = useState<'list' | 'grid'>('list');
   const [form, setForm] = useState({
     source: 'manual' as Prospect['source'],
     business_name: '',
@@ -477,6 +479,40 @@ export const DataExtractorView: React.FC = () => {
     URL.revokeObjectURL(url);
   };
 
+
+  const applyQuickCity = (city:string) => {
+    setLocation(city);
+    setArea('');
+  };
+
+  const exportLiveExcel = () => {
+    if (!liveResults.length) {
+      setNotice('Run a search first.');
+      return;
+    }
+    const rows = liveResults.map((r:any) => ({
+      Business: r.business_name || '',
+      Category: r.business_type || r.category || '',
+      Location: [area, location].filter(Boolean).join(', '),
+      Address: r.address || '',
+      Mobile: r.phone || '',
+      Email: r.email || '',
+      Website: r.website || '',
+      Score: r.lead_score ?? r.match_score ?? '',
+      'Recommended Product': r.recommended_product || '',
+      'CRM Status': isInCrm(r) ? 'In CRM' : 'Not Added'
+    }));
+    const ws = XLSX.utils.json_to_sheet(rows);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Lead Search');
+    XLSX.writeFile(wb, 'engagex_lead_search.xlsx');
+  };
+
+  const openGoogleMap = () => {
+    const q = [category || query || 'businesses', area, location].filter(Boolean).join(' ');
+    window.open('https://www.google.com/maps/search/' + encodeURIComponent(q), '_blank', 'noopener,noreferrer');
+  };
+
   const kpis = useMemo(() => ({
     searches: history.length,
     results: history.reduce((sum, h) => sum + Number(h.results_count || 0), 0),
@@ -505,24 +541,29 @@ export const DataExtractorView: React.FC = () => {
         ))}
       </div>
 
-      <section style={{background:'#fff',border:'1px solid #dfe9ed',borderRadius:16,padding:20,marginBottom:18,boxShadow:'0 8px 24px rgba(15,23,42,.035)'}}>
+      <section style={{background:'#fff',border:'1px solid #dfe9ed',borderRadius:16,padding:'14px 18px',marginBottom:14,boxShadow:'0 8px 24px rgba(15,23,42,.035)'}}>
         <div style={{display:'flex',justifyContent:'space-between',gap:12,alignItems:'center',flexWrap:'wrap'}}>
-          <div>
-            <small style={{fontSize:10,color:'#64748b',fontWeight:900,letterSpacing:.7}}>SOURCE CONNECTORS</small>
-            <h3 style={{margin:'5px 0 5px',fontSize:20}}>Prospecting Sources</h3>
-            <p style={{margin:0,fontSize:11,color:'#64748b'}}>Google Places API powers live business discovery with structured business details.</p>
-          </div>
-          <div style={{display:'flex',gap:8,flexWrap:'wrap'}}>
-            {[
-              ['Google Maps','Google Places API connected'],
-              ['IndiaMART','API / export connector ready'],
-              ['Justdial','Licensed feed / export ready']
-            ].map(([name,status]) => (
-              <div key={name} style={{border:'1px solid #e2e8f0',borderRadius:12,padding:'12px 14px',minWidth:180}}>
-                <b style={{display:'block',fontSize:12}}>{name}</b>
-                <small style={{fontSize:10,color:'#64748b'}}>{status}</small>
-              </div>
+          <div style={{display:'flex',alignItems:'center',gap:8,flexWrap:'wrap'}}>
+            <span style={{fontSize:10,fontWeight:900,color:'#64748b',letterSpacing:.4}}>QUICK CITIES:</span>
+            {['Mumbai','Delhi','Bengaluru','Pune','Hyderabad','Ahmedabad','Bhopal'].map(city=>(
+              <button
+                key={city}
+                onClick={()=>applyQuickCity(city)}
+                style={{border:0,borderRadius:7,padding:'6px 10px',background:location===city?'#dbeafe':'#f1f5f9',color:location===city?'#1d4ed8':'#475569',fontSize:10,fontWeight:800,cursor:'pointer'}}
+              >
+                {city}
+              </button>
             ))}
+          </div>
+          <div style={{display:'flex',alignItems:'center',gap:16,fontSize:10,fontWeight:800}}>
+            <span style={{display:'flex',alignItems:'center',gap:5,color:'#64748b'}}>
+              <span style={{width:12,height:12,border:'1px solid #94a3b8',borderRadius:2,display:'inline-block'}}></span>
+              WhatsApp Provider
+            </span>
+            <span style={{display:'flex',alignItems:'center',gap:5,color:'#64748b'}}>
+              <span style={{width:12,height:12,border:'1px solid #94a3b8',borderRadius:2,display:'inline-block'}}></span>
+              Verified Email
+            </span>
           </div>
         </div>
       </section>
@@ -552,112 +593,157 @@ export const DataExtractorView: React.FC = () => {
 
       {liveResults.length > 0 && (
         <section style={{background:'#fff',border:'1px solid #dfe9ed',borderRadius:16,overflow:'hidden',marginBottom:18,boxShadow:'0 10px 28px rgba(15,23,42,.04)'}}>
-          <div style={{padding:'14px 16px',borderBottom:'1px solid #e8eef2',display:'flex',justifyContent:'space-between',alignItems:'center',gap:10,flexWrap:'wrap'}}>
-            <div style={{display:'flex',alignItems:'center',gap:10,flexWrap:'wrap'}}>
+          <div style={{padding:'12px 14px',borderBottom:'1px solid #e8eef2',display:'flex',justifyContent:'space-between',alignItems:'center',gap:10,flexWrap:'wrap'}}>
+            <div style={{display:'flex',alignItems:'center',gap:8,flexWrap:'wrap'}}>
               <button
                 onClick={()=>toggleSelectAllLive(!allLiveSelected)}
                 style={{padding:'9px 13px',border:'1px solid #cbd5e1',borderRadius:10,background:'#fff',fontWeight:800,fontSize:11,cursor:'pointer'}}
               >
-                {allLiveSelected ? 'Clear All' : `Select All (${liveResults.length})`}
+                {allLiveSelected ? 'Deselect All' : `Select All (${liveResults.length})`}
               </button>
-              <span style={{fontSize:11,color:'#64748b'}}>
-                {Object.values(selectedLive).filter(Boolean).length} selected
-              </span>
+
+              <button
+                onClick={saveLiveProspects}
+                className="primaryBtn small"
+                style={{padding:'10px 15px',background:'#16a34a'}}
+              >
+                <UserPlus size={14}/> Add {Object.values(selectedLive).filter(Boolean).length || liveResults.length} to CRM Contacts
+              </button>
+
+              <button
+                onClick={()=>setNotice('Bulk WhatsApp can be used only for contacts with recorded WhatsApp consent.')}
+                style={{padding:'10px 15px',border:0,borderRadius:9,background:'#7c3aed',color:'#fff',fontWeight:900,fontSize:10,cursor:'pointer'}}
+              >
+                <MessageCircle size={14}/> Broadcast WhatsApp
+              </button>
             </div>
+
             <div style={{display:'flex',gap:8,alignItems:'center',flexWrap:'wrap'}}>
-              {nextPageToken && <button onClick={loadMoreResults} disabled={searching} className="primaryBtn small" style={{background:'#fff',color:'#0f7490',border:'1px solid #bfe4ee'}}>{searching ? 'Loading…' : 'Load More'}</button>}
-              <button onClick={saveLiveProspects} className="primaryBtn small" style={{padding:'10px 16px'}}>
-                <UserPlus size={14}/> Add Selected to CRM
+              <button onClick={exportLiveExcel} style={{padding:'9px 12px',border:'1px solid #cbd5e1',borderRadius:9,background:'#fff',fontWeight:800,fontSize:10,cursor:'pointer'}}>
+                Export Excel (.xlsx)
               </button>
+              <button onClick={openGoogleMap} style={{padding:'9px 12px',border:'1px solid #bfdbfe',borderRadius:9,background:'#eff6ff',color:'#1d4ed8',fontWeight:800,fontSize:10,cursor:'pointer'}}>
+                <MapPin size={13}/> Interactive Google Map
+              </button>
+              <button onClick={exportCsv} style={{padding:'9px 12px',border:'1px solid #cbd5e1',borderRadius:9,background:'#fff',fontWeight:800,fontSize:10,cursor:'pointer'}}>
+                Export CSV
+              </button>
+              <div style={{display:'flex',border:'1px solid #cbd5e1',borderRadius:9,overflow:'hidden'}}>
+                <button onClick={()=>setResultView('list')} style={{padding:'8px 10px',border:0,background:resultView==='list'?'#0f172a':'#fff',color:resultView==='list'?'#fff':'#64748b',cursor:'pointer'}}>☷</button>
+                <button onClick={()=>setResultView('grid')} style={{padding:'8px 10px',border:0,background:resultView==='grid'?'#0f172a':'#fff',color:resultView==='grid'?'#fff':'#64748b',cursor:'pointer'}}>▦</button>
+              </div>
             </div>
           </div>
 
-          <div style={{padding:'12px 16px',background:'#f8fbfc',borderBottom:'1px solid #e8eef2'}}>
-            <b style={{fontSize:15}}>Google Business Prospect List</b>
-            <small style={{display:'block',fontSize:10,color:'#64748b',marginTop:3}}>
-              {liveResults.length} results · {[area, location].filter(Boolean).join(', ') || 'Selected location'} · review the data, then add selected records to Contact Management
-            </small>
-          </div>
-
-          <div style={{overflowX:'auto'}}>
-            <table style={{width:'100%',borderCollapse:'collapse',minWidth:1080,tableLayout:'fixed'}}>
-              <thead>
-                <tr style={{background:'#f8fafc',color:'#475569'}}>
-                  <th style={{width:'4%',padding:'13px 10px',textAlign:'center',fontSize:10}}>
-                    <input type="checkbox" checked={allLiveSelected} onChange={e=>toggleSelectAllLive(e.target.checked)} style={{width:17,height:17}}/>
-                  </th>
-                  <th style={{width:'23%',padding:'13px 10px',textAlign:'left',fontSize:10}}>PROSPECT / BUSINESS</th>
-                  <th style={{width:'15%',padding:'13px 10px',textAlign:'left',fontSize:10}}>CATEGORY & INDUSTRY</th>
-                  <th style={{width:'17%',padding:'13px 10px',textAlign:'left',fontSize:10}}>LOCATION</th>
-                  <th style={{width:'14%',padding:'13px 10px',textAlign:'left',fontSize:10}}>MOBILE / WHATSAPP</th>
-                  <th style={{width:'13%',padding:'13px 10px',textAlign:'left',fontSize:10}}>BUSINESS EMAIL / WEB</th>
-                  <th style={{width:'6%',padding:'13px 8px',textAlign:'center',fontSize:10}}>SCORE</th>
-                  <th style={{width:'8%',padding:'13px 8px',textAlign:'center',fontSize:10}}>CRM ACTION</th>
-                </tr>
-              </thead>
-              <tbody>
-                {liveResults.map((r:any,i:number)=>{
-                  const key=r.external_id || String(i);
-                  const inCrm = isInCrm(r);
-                  const hasContact = !!String(r.phone || '').trim() || !!String(r.email || '').trim();
-                  return (
-                    <tr key={key} style={{borderTop:'1px solid #edf2f7'}}>
-                      <td style={{padding:'15px 10px',textAlign:'center'}}>
-                        <input type="checkbox" checked={!!selectedLive[key]} onChange={e=>setSelectedLive(prev=>({...prev,[key]:e.target.checked}))} style={{width:17,height:17}}/>
-                      </td>
-                      <td style={{padding:'15px 10px',verticalAlign:'top'}}>
-                        <b style={{display:'block',fontSize:13,color:'#0f172a',lineHeight:1.35}}>{r.business_name}</b>
-                        <small style={{display:'block',fontSize:10,color:'#64748b',marginTop:4}}>{r.recommended_product ? 'Recommended: ' + r.recommended_product : 'Business Prospect'}</small>
-                      </td>
-                      <td style={{padding:'15px 10px',verticalAlign:'top'}}>
-                        <b style={{fontSize:11,color:'#334155'}}>{r.business_type || r.category || 'Business'}</b>
-                        <span style={{display:'inline-block',marginTop:5,padding:'3px 7px',borderRadius:6,background:'#e0f2fe',color:'#0369a1',fontSize:9,fontWeight:800}}>
-                          {r.category || 'Google Business'}
-                        </span>
-                      </td>
-                      <td style={{padding:'15px 10px',verticalAlign:'top'}}>
-                        <div style={{display:'flex',gap:5,alignItems:'flex-start'}}>
-                          <MapPin size={13} style={{color:'#ef4444',marginTop:1,flex:'0 0 auto'}}/>
-                          <div>
-                            <b style={{fontSize:11,color:'#334155'}}>{[area, location].filter(Boolean).join(', ') || '—'}</b>
-                            <small style={{display:'block',fontSize:9,color:'#64748b',marginTop:3,lineHeight:1.4}}>{r.address || 'Google Maps listing'}</small>
-                          </div>
-                        </div>
-                      </td>
-                      <td style={{padding:'15px 10px',verticalAlign:'top'}}>
-                        <b style={{fontSize:12,color:'#0f172a'}}>{r.phone || '—'}</b>
-                        {r.phone && <div style={{marginTop:5,display:'flex',alignItems:'center',gap:5,color:'#16a34a',fontSize:9,fontWeight:800}}><MessageCircle size={12}/> WhatsApp capable</div>}
-                      </td>
-                      <td style={{padding:'15px 10px',verticalAlign:'top',wordBreak:'break-word'}}>
-                        {r.email ? <b style={{fontSize:10,color:'#0284c7'}}>{r.email}</b> : r.website ? <a href={r.website} target="_blank" rel="noreferrer" style={{fontSize:10,color:'#0284c7',fontWeight:800}}>Open Website</a> : <span style={{fontSize:10,color:'#94a3b8'}}>—</span>}
-                        {r.source_domain && <small style={{display:'block',fontSize:9,color:'#94a3b8',marginTop:4}}>{r.source_domain}</small>}
-                      </td>
-                      <td style={{padding:'15px 8px',textAlign:'center',verticalAlign:'top'}}>
-                        <span style={{display:'inline-block',padding:'5px 9px',borderRadius:999,background:(r.lead_score||0)>=85?'#dcfce7':'#e0f2fe',color:(r.lead_score||0)>=85?'#15803d':'#0369a1',fontWeight:900,fontSize:11}}>
-                          {r.lead_score ?? r.match_score ?? '—'}{(r.lead_score ?? r.match_score) != null ? '%' : ''}
-                        </span>
-                      </td>
-                      <td style={{padding:'15px 8px',textAlign:'center',verticalAlign:'top'}}>
-                        {inCrm ? (
-                          <span style={{display:'inline-flex',alignItems:'center',gap:5,padding:'7px 9px',borderRadius:8,background:'#dcfce7',color:'#15803d',fontWeight:900,fontSize:10}}>
-                            <Check size={13}/> In CRM
+          {resultView === 'list' ? (
+            <div style={{overflowX:'auto'}}>
+              <table style={{width:'100%',borderCollapse:'collapse',minWidth:1120,tableLayout:'fixed'}}>
+                <thead>
+                  <tr style={{background:'#f8fafc',color:'#475569'}}>
+                    <th style={{width:'4%',padding:'14px 10px',textAlign:'center',fontSize:10}}>
+                      <input type="checkbox" checked={allLiveSelected} onChange={e=>toggleSelectAllLive(e.target.checked)} style={{width:17,height:17}}/>
+                    </th>
+                    <th style={{width:'22%',padding:'14px 10px',textAlign:'left',fontSize:10}}>PROSPECT NAME & ROLE</th>
+                    <th style={{width:'17%',padding:'14px 10px',textAlign:'left',fontSize:10}}>COMPANY & INDUSTRY</th>
+                    <th style={{width:'17%',padding:'14px 10px',textAlign:'left',fontSize:10}}>LOCATION (CITY / STATE)</th>
+                    <th style={{width:'14%',padding:'14px 10px',textAlign:'left',fontSize:10}}>MOBILE / WHATSAPP</th>
+                    <th style={{width:'13%',padding:'14px 10px',textAlign:'left',fontSize:10}}>BUSINESS EMAIL</th>
+                    <th style={{width:'6%',padding:'14px 8px',textAlign:'center',fontSize:10}}>SCORE</th>
+                    <th style={{width:'7%',padding:'14px 8px',textAlign:'center',fontSize:10}}>CRM ACTION</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {liveResults.map((r:any,i:number)=>{
+                    const key=r.external_id || String(i);
+                    const inCrm = isInCrm(r);
+                    const hasContact = !!String(r.phone || '').trim() || !!String(r.email || '').trim();
+                    return (
+                      <tr key={key} style={{borderTop:'1px solid #e8eef2',background:selectedLive[key]?'#eff8ff':'#fff'}}>
+                        <td style={{padding:'16px 10px',textAlign:'center'}}>
+                          <input type="checkbox" checked={!!selectedLive[key]} onChange={e=>setSelectedLive(prev=>({...prev,[key]:e.target.checked}))} style={{width:17,height:17}}/>
+                        </td>
+                        <td style={{padding:'16px 10px',verticalAlign:'top'}}>
+                          <b style={{display:'block',fontSize:13,color:'#0f172a',lineHeight:1.35}}>{r.business_name}</b>
+                          <small style={{display:'block',fontSize:10,color:'#64748b',marginTop:4}}>
+                            {r.business_type || r.category || 'Business Prospect'}
+                          </small>
+                        </td>
+                        <td style={{padding:'16px 10px',verticalAlign:'top'}}>
+                          <b style={{display:'block',fontSize:12,color:'#1e293b'}}>{r.business_name}</b>
+                          <span style={{display:'inline-block',marginTop:6,padding:'3px 8px',borderRadius:6,background:'#e0f2fe',color:'#0369a1',fontSize:9,fontWeight:900}}>
+                            {r.category || r.business_type || 'Google Business'}
                           </span>
-                        ) : (
-                          <button
-                            onClick={()=>void addOneToCrm(r)}
-                            disabled={!hasContact}
-                            style={{display:'inline-flex',alignItems:'center',justifyContent:'center',gap:5,padding:'8px 9px',border:0,borderRadius:8,background:hasContact?'#0284c7':'#e2e8f0',color:hasContact?'#fff':'#94a3b8',fontWeight:900,fontSize:9,cursor:hasContact?'pointer':'not-allowed'}}
-                          >
-                            <UserPlus size={13}/> Add to Contacts
-                          </button>
-                        )}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+                        </td>
+                        <td style={{padding:'16px 10px',verticalAlign:'top'}}>
+                          <div style={{display:'flex',gap:6,alignItems:'flex-start'}}>
+                            <MapPin size={13} style={{color:'#ef4444',marginTop:2,flex:'0 0 auto'}}/>
+                            <div>
+                              <b style={{fontSize:11,color:'#334155'}}>{[area, location].filter(Boolean).join(', ') || '—'}</b>
+                              <small style={{display:'block',fontSize:9,color:'#64748b',marginTop:3,lineHeight:1.4}}>{r.address || 'Google Maps listing'}</small>
+                            </div>
+                          </div>
+                        </td>
+                        <td style={{padding:'16px 10px',verticalAlign:'top'}}>
+                          <b style={{fontSize:12,color:'#0f172a'}}>{r.phone || '—'}</b>
+                          {r.phone && <div style={{marginTop:5,display:'flex',alignItems:'center',gap:5,color:'#16a34a',fontSize:9,fontWeight:800}}><MessageCircle size={12}/> WhatsApp</div>}
+                        </td>
+                        <td style={{padding:'16px 10px',verticalAlign:'top',wordBreak:'break-word'}}>
+                          {r.email ? <b style={{fontSize:10,color:'#0284c7'}}>{r.email}</b> : r.website ? <a href={r.website} target="_blank" rel="noreferrer" style={{fontSize:10,color:'#0284c7',fontWeight:800}}>Open Website</a> : <span style={{fontSize:10,color:'#94a3b8'}}>—</span>}
+                        </td>
+                        <td style={{padding:'16px 8px',textAlign:'center',verticalAlign:'top'}}>
+                          <span style={{display:'inline-block',padding:'5px 9px',borderRadius:999,background:(r.lead_score||0)>=85?'#dcfce7':'#e0f2fe',color:(r.lead_score||0)>=85?'#15803d':'#0369a1',fontWeight:900,fontSize:11}}>
+                            {r.lead_score ?? r.match_score ?? '—'}{(r.lead_score ?? r.match_score) != null ? '%' : ''}
+                          </span>
+                        </td>
+                        <td style={{padding:'16px 8px',textAlign:'center',verticalAlign:'top'}}>
+                          {inCrm ? (
+                            <span style={{display:'inline-flex',alignItems:'center',gap:5,padding:'7px 9px',borderRadius:8,background:'#dcfce7',color:'#15803d',fontWeight:900,fontSize:10}}>
+                              <Check size={13}/> In CRM
+                            </span>
+                          ) : (
+                            <button
+                              onClick={()=>void addOneToCrm(r)}
+                              disabled={!hasContact}
+                              style={{display:'inline-flex',alignItems:'center',justifyContent:'center',gap:5,padding:'8px 10px',border:0,borderRadius:8,background:hasContact?'#0284c7':'#e2e8f0',color:hasContact?'#fff':'#94a3b8',fontWeight:900,fontSize:9,cursor:hasContact?'pointer':'not-allowed'}}
+                            >
+                              <UserPlus size={13}/> Add to Contacts
+                            </button>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(280px,1fr))',gap:12,padding:14}}>
+              {liveResults.map((r:any,i:number)=>{
+                const key=r.external_id || String(i);
+                const inCrm=isInCrm(r);
+                return (
+                  <article key={key} style={{border:'1px solid #e2e8f0',borderRadius:12,padding:14,background:'#fff'}}>
+                    <div style={{display:'flex',justifyContent:'space-between',gap:8}}>
+                      <input type="checkbox" checked={!!selectedLive[key]} onChange={e=>setSelectedLive(prev=>({...prev,[key]:e.target.checked}))}/>
+                      <span style={{fontSize:10,fontWeight:900,color:'#15803d'}}>{r.lead_score ?? r.match_score ?? '—'}%</span>
+                    </div>
+                    <h4 style={{fontSize:14,margin:'10px 0 4px'}}>{r.business_name}</h4>
+                    <div style={{fontSize:10,color:'#64748b'}}>{r.business_type || r.category || 'Business'}</div>
+                    <div style={{fontSize:10,color:'#475569',marginTop:8}}>{r.phone || 'No phone'}</div>
+                    <div style={{fontSize:10,color:'#475569',marginTop:4}}>{[area,location].filter(Boolean).join(', ') || '—'}</div>
+                    <button
+                      onClick={()=>void addOneToCrm(r)}
+                      disabled={inCrm || (!r.phone && !r.email)}
+                      className="primaryBtn small"
+                      style={{marginTop:12,width:'100%',opacity:inCrm?0.7:1}}
+                    >
+                      {inCrm ? 'In CRM' : 'Add to Contacts'}
+                    </button>
+                  </article>
+                );
+              })}
+            </div>
+          )}
         </section>
       )}
 
