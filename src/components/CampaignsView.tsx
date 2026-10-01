@@ -16,12 +16,16 @@ import {
   Trash2,
   Copy,
   ChevronRight,
+  BarChart3,
+  Eye,
+  RefreshCw,
 } from 'lucide-react';
 import { CommercialShell } from './CommercialShell';
 import { useApp } from '../context/AppContext';
 import { Campaign, ChannelType } from '../types';
 import { campaignAudienceLabel } from '../lib/metrics';
 import { COMPANY_TEMPLATE_VARIABLES, renderCompanyMessage, resolveWorkspaceBranding } from '../lib/workspaceBranding';
+import { supabase } from '../lib/supabase';
 
 export const CampaignsView: React.FC = () => {
   const { campaigns, contacts, activeWorkspace, workspaceSettings, addCampaign, queueCampaign, updateCampaign, deleteCampaign } = useApp();
@@ -31,6 +35,37 @@ export const CampaignsView: React.FC = () => {
   const [isWizardOpen, setIsWizardOpen] = useState(false);
   const [wizardStep, setWizardStep] = useState(1);
   const [notice, setNotice] = useState<string>('');
+  const [reportCampaign, setReportCampaign] = useState<Campaign | null>(null);
+  const [reportRows, setReportRows] = useState<any[]>([]);
+  const [reportLoading, setReportLoading] = useState(false);
+
+  const loadCampaignReport = async (campaign: Campaign) => {
+    if (!activeWorkspace?.id) return;
+    setReportCampaign(campaign);
+    setReportLoading(true);
+    const { data, error } = await supabase
+      .from('engagex_messages')
+      .select('id,contact_id,contact_name,contact_phone,contact_email,channel,status,subject,provider_message_id,created_at')
+      .eq('workspace_id', activeWorkspace.id)
+      .eq('campaign_id', campaign.id)
+      .order('created_at', { ascending: false });
+    if (error) setNotice(error.message);
+    setReportRows(data || []);
+    setReportLoading(false);
+  };
+
+  const reportCounts = useMemo(() => {
+    const rows = reportRows;
+    return {
+      total: rows.length,
+      sent: rows.filter((r:any)=>['sent','delivered','read'].includes(r.status)).length,
+      delivered: rows.filter((r:any)=>['delivered','read'].includes(r.status)).length,
+      read: rows.filter((r:any)=>r.status==='read').length,
+      failed: rows.filter((r:any)=>r.status==='failed').length,
+      pending: rows.filter((r:any)=>r.status==='pending').length,
+    };
+  }, [reportRows]);
+
 
   // Wizard form state
   const [name, setName] = useState('');
@@ -294,7 +329,23 @@ export const CampaignsView: React.FC = () => {
                         </span>
                       </td>
                       <td>
-                        <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                        <div style={{ display: 'flex', gap: '6px', alignItems: 'center', flexWrap:'wrap' }}>
+                          <button
+                            className="tableAction"
+                            onClick={() => void loadCampaignReport(c)}
+                            style={{
+                              display:'inline-flex',
+                              alignItems:'center',
+                              gap:'4px',
+                              padding:'4px 7px',
+                              borderRadius:'5px',
+                              background:'#eef6ff',
+                              color:'#1d4ed8',
+                              fontWeight:700,
+                            }}
+                          >
+                            <BarChart3 size={11}/> Reports
+                          </button>
                           {['draft', 'scheduled', 'paused'].includes(c.status) && (
                             <button
                               className="tableAction"
@@ -336,6 +387,92 @@ export const CampaignsView: React.FC = () => {
           </div>
         )}
       </section>
+
+
+      {reportCampaign && (
+        <div className="modalBackdrop">
+          <div className="modalCard" style={{maxWidth:'1080px',width:'94vw'}}>
+            <div className="modalHead">
+              <div>
+                <small>CAMPAIGN REPORT</small>
+                <h3>{reportCampaign.name}</h3>
+                <p style={{margin:'3px 0 0',fontSize:10,color:'#64748b'}}>
+                  Recipient-wise delivery status for this campaign
+                </p>
+              </div>
+              <button onClick={()=>setReportCampaign(null)}>×</button>
+            </div>
+
+            <div style={{display:'flex',justifyContent:'space-between',gap:10,alignItems:'center',flexWrap:'wrap',marginBottom:14}}>
+              <div style={{display:'flex',gap:8,flexWrap:'wrap'}}>
+                {[
+                  ['TOTAL',reportCounts.total,'#0f172a','#f1f5f9'],
+                  ['SENT',reportCounts.sent,'#0369a1','#e0f2fe'],
+                  ['DELIVERED',reportCounts.delivered,'#047857','#ecfdf5'],
+                  ['OPEN / READ',reportCounts.read,'#7c3aed','#f3e8ff'],
+                  ['PENDING',reportCounts.pending,'#b45309','#fef3c7'],
+                  ['FAILED',reportCounts.failed,'#b91c1c','#fee2e2'],
+                ].map(([label,value,color,bg])=>(
+                  <div key={String(label)} style={{padding:'9px 12px',borderRadius:10,background:String(bg),minWidth:92}}>
+                    <small style={{display:'block',fontSize:8,fontWeight:900,color:String(color)}}>{label}</small>
+                    <b style={{fontSize:18,color:String(color)}}>{value}</b>
+                  </div>
+                ))}
+              </div>
+              <button className="cbtn secondary" onClick={()=>void loadCampaignReport(reportCampaign)} disabled={reportLoading}>
+                <RefreshCw size={13}/> {reportLoading?'Refreshing…':'Refresh Report'}
+              </button>
+            </div>
+
+            <div className="responsiveTable" style={{maxHeight:'56vh',overflow:'auto'}}>
+              <table className="dataTable">
+                <thead>
+                  <tr>
+                    <th>Contact</th>
+                    <th>Channel</th>
+                    <th>Recipient</th>
+                    <th>Status</th>
+                    <th>Provider ID</th>
+                    <th>Sent At</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {reportLoading ? (
+                    <tr><td colSpan={6}>Loading campaign report…</td></tr>
+                  ) : reportRows.length===0 ? (
+                    <tr><td colSpan={6}>No recipient delivery rows are linked to this campaign yet.</td></tr>
+                  ) : reportRows.map((r:any)=>(
+                    <tr key={r.id}>
+                      <td><b>{r.contact_name || '—'}</b></td>
+                      <td><span className="status">{String(r.channel||'').toUpperCase()}</span></td>
+                      <td>
+                        <b style={{fontSize:10}}>{r.contact_email || r.contact_phone || '—'}</b>
+                      </td>
+                      <td>
+                        <span
+                          className="status"
+                          style={{
+                            background:r.status==='failed'?'#fee2e2':r.status==='read'?'#f3e8ff':r.status==='delivered'?'#dcfce7':r.status==='pending'?'#fef3c7':'#e0f2fe',
+                            color:r.status==='failed'?'#b91c1c':r.status==='read'?'#7c3aed':r.status==='delivered'?'#15803d':r.status==='pending'?'#b45309':'#0369a1'
+                          }}
+                        >
+                          {String(r.status || 'pending').toUpperCase()}
+                        </span>
+                      </td>
+                      <td><small style={{fontSize:9,color:'#64748b'}}>{r.provider_message_id || '—'}</small></td>
+                      <td>{r.created_at ? new Date(r.created_at).toLocaleString('en-IN') : '—'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            <div style={{marginTop:12,padding:'10px 12px',borderRadius:10,background:'#f8fafc',fontSize:9,color:'#64748b'}}>
+              Email delivery/open/bounce status appears here when provider webhooks update the message log. WhatsApp/SMS will use the same report table once those provider webhooks are connected.
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* 6-Step Multi-channel Campaign Wizard */}
       {isWizardOpen && (
