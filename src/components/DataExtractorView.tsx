@@ -41,6 +41,9 @@ export const DataExtractorView: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [notice, setNotice] = useState('');
   const [showAdd, setShowAdd] = useState(false);
+  const [liveResults, setLiveResults] = useState<any[]>([]);
+  const [searching, setSearching] = useState(false);
+  const [selectedLive, setSelectedLive] = useState<Record<string, boolean>>({});
   const [form, setForm] = useState({
     source: 'manual' as Prospect['source'],
     business_name: '',
@@ -69,6 +72,67 @@ export const DataExtractorView: React.FC = () => {
   };
 
   useEffect(() => { void load(); }, [activeWorkspace?.id]);
+
+  const runLiveSearch = async () => {
+    if (!category.trim() && !query.trim()) {
+      setNotice('Enter a category or search term first.');
+      return;
+    }
+    setSearching(true);
+    setNotice('');
+    setLiveResults([]);
+    setSelectedLive({});
+    try {
+      const textQuery = [category.trim() || query.trim(), location.trim()].filter(Boolean).join(' in ');
+      const { data, error } = await supabase.functions.invoke('engagex-lead-search', {
+        body: { query: textQuery, limit: 20 }
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      setLiveResults(data?.results || []);
+      if (!(data?.results || []).length) setNotice('No live businesses found for this search.');
+    } catch (e: any) {
+      setNotice(e?.message || 'Live search failed.');
+    } finally {
+      setSearching(false);
+    }
+  };
+
+  const saveLiveProspects = async () => {
+    if (!activeWorkspace?.id) return;
+    const selected = liveResults.filter((r, i) => selectedLive[r.external_id || String(i)]);
+    if (!selected.length) {
+      setNotice('Select at least one live result first.');
+      return;
+    }
+    setNotice('');
+    const payload = selected.map((r: any) => ({
+      workspace_id: activeWorkspace.id,
+      source: 'google_maps',
+      business_name: r.business_name,
+      category: r.category || category.trim() || null,
+      location: location.trim() || null,
+      address: r.address || null,
+      phone: r.phone || null,
+      email: null,
+      website: r.website || null,
+      rating: r.rating,
+      source_url: r.source_url || null,
+      status: 'new',
+      outreach_eligibility: 'review_required'
+    }));
+    const { error } = await supabase.from('engagex_prospects').upsert(payload, {
+      onConflict: 'workspace_id,source,business_name,phone,website',
+      ignoreDuplicates: true
+    });
+    if (error) {
+      setNotice(error.message);
+      return;
+    }
+    setNotice(selected.length + ' prospect(s) saved for review.');
+    setSelectedLive({});
+    await load();
+  };
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -172,7 +236,7 @@ export const DataExtractorView: React.FC = () => {
       </section>
 
       <section style={{background:'#fff',border:'1px solid #dfe9ed',borderRadius:14,padding:16,marginBottom:14}}>
-        <div style={{display:'grid',gridTemplateColumns:'2fr 1fr 1fr 1fr auto auto',gap:8,alignItems:'center'}}>
+        <div style={{display:'grid',gridTemplateColumns:'2fr 1fr 1fr 1fr auto auto auto',gap:8,alignItems:'center'}}>
           <div style={{position:'relative'}}>
             <Search size={15} style={{position:'absolute',left:11,top:11,color:'#94a3b8'}}/>
             <input value={query} onChange={e=>setQuery(e.target.value)} placeholder="Search company, phone, email, website..." style={{width:'100%',padding:'10px 10px 10px 34px',border:'1px solid #dbe7ee',borderRadius:9}}/>
@@ -187,10 +251,44 @@ export const DataExtractorView: React.FC = () => {
           </select>
           <input value={category} onChange={e=>setCategory(e.target.value)} placeholder="Category" style={{padding:10,border:'1px solid #dbe7ee',borderRadius:9}}/>
           <input value={location} onChange={e=>setLocation(e.target.value)} placeholder="City / Location" style={{padding:10,border:'1px solid #dbe7ee',borderRadius:9}}/>
+          <button onClick={runLiveSearch} disabled={searching} className="primaryBtn small"><Search size={14}/> {searching ? 'Searching…' : 'Search Live'}</button>
           <button onClick={()=>setShowAdd(v=>!v)} className="primaryBtn small"><Plus size={14}/> Add</button>
           <button onClick={exportCsv} style={{padding:'9px 10px',border:'1px solid #dbe7ee',borderRadius:9,background:'#fff',cursor:'pointer',fontWeight:800,fontSize:10,display:'inline-flex',gap:5,alignItems:'center'}}><Download size={13}/> Export</button>
         </div>
       </section>
+
+      {liveResults.length > 0 && (
+        <section style={{background:'#fff',border:'1px solid #dfe9ed',borderRadius:14,overflow:'hidden',marginBottom:14}}>
+          <div style={{padding:'12px 14px',borderBottom:'1px solid #edf2f4',display:'flex',justifyContent:'space-between',alignItems:'center',gap:10,flexWrap:'wrap'}}>
+            <div>
+              <b style={{fontSize:11}}>Live Google Maps Results</b>
+              <small style={{display:'block',fontSize:8,color:'#94a3b8',marginTop:2}}>{liveResults.length} businesses found · select records to save into Lead Intelligence</small>
+            </div>
+            <button onClick={saveLiveProspects} className="primaryBtn small">Save Selected</button>
+          </div>
+          <div style={{overflowX:'auto'}}>
+            <table className="dashTable" style={{marginTop:0}}>
+              <thead><tr><th></th><th>Business</th><th>Category</th><th>Address</th><th>Phone</th><th>Rating</th><th>Website</th></tr></thead>
+              <tbody>
+                {liveResults.map((r:any,i:number)=>{
+                  const key=r.external_id || String(i);
+                  return (
+                    <tr key={key}>
+                      <td><input type="checkbox" checked={!!selectedLive[key]} onChange={e=>setSelectedLive(prev=>({...prev,[key]:e.target.checked}))}/></td>
+                      <td><b>{r.business_name}</b></td>
+                      <td>{r.category || '—'}</td>
+                      <td>{r.address || '—'}</td>
+                      <td>{r.phone || '—'}</td>
+                      <td>{r.rating ?? '—'}</td>
+                      <td>{r.website ? <a href={r.website} target="_blank" rel="noreferrer" style={{color:'#0891b2',fontWeight:800}}>Open</a> : '—'}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      )}
 
       {notice && <div className="notice" style={{marginBottom:12}}>{notice}</div>}
 
