@@ -157,6 +157,7 @@ export const LiveAppProvider: React.FC<{children: React.ReactNode}> = ({ childre
     sendMessage:()=>unavailable('Messaging provider'),
     simulateCustomerReply:()=>reportError(new Error('Live replies must arrive through a verified provider webhook.')),
     addTemplate:async data=>{await insert('templates',{...data,status:'draft'});},
+    updateTemplate:(id,data)=>update('templates',id,data),
     deleteTemplate:id=>safely(()=>remove('templates',[id])),
     addAutomation:async data=>{await insert('automations',{...data,status:'paused'});},
     toggleAutomation:()=>reportError(new Error('Automation activation requires a configured provider and durable worker. Workflow drafts are saved in the database.')),
