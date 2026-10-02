@@ -5,8 +5,6 @@ import * as XLSX from 'xlsx';
 import { supabase } from '../lib/supabase';
 import { useApp } from '../context/AppContext';
 import { contactPhone, contactEmail, planProspectImport, prospectToContact } from '../lib/contactDirectory';
-import { LeadForgeBetaPanel } from './LeadForgeBetaPanel';
-import { LEADFORGE_ENABLED, completeLeadForgeJob, createLeadForgeJob, failLeadForgeJob } from '../lib/leadForge';
 
 type SearchHistory = {
   id: string;
@@ -75,7 +73,6 @@ export const DataExtractorView: React.FC = () => {
   const [selectedLive, setSelectedLive] = useState<Record<string, boolean>>({});
   const [addedCrmKeys, setAddedCrmKeys] = useState<Set<string>>(new Set());
   const [resultView, setResultView] = useState<'list' | 'grid'>('list');
-  const [leadForgeCampaignName, setLeadForgeCampaignName] = useState('');
   const [form, setForm] = useState({
     source: 'manual' as Prospect['source'],
     business_name: '',
@@ -117,8 +114,8 @@ export const DataExtractorView: React.FC = () => {
   useEffect(() => { void load(); void loadHistory(); }, [activeWorkspace?.id]);
 
   const runLiveSearch = async () => {
-    if (!category.trim() && !query.trim() && !location.trim() && !area.trim() && !leadForgeCampaignName.trim()) {
-      setNotice('Enter a business/category and city, or type a natural search in the LeadForge Campaign Name box.');
+    if (!category.trim() && !query.trim() && !location.trim() && !area.trim()) {
+      setNotice('Enter a business/category, area or city first.');
       return;
     }
     setSearching(true);
@@ -127,27 +124,10 @@ export const DataExtractorView: React.FC = () => {
     setSelectedLive({});
     setNextPageToken(null);
     setLastHistoryId(null);
-
-    const effectiveQuery = query.trim() || (
-      !category.trim() && !location.trim() && !area.trim() ? leadForgeCampaignName.trim() : ''
-    );
-
-    let leadForgeJob: { campaignId: string | null; jobId: string | null } = { campaignId: null, jobId: null };
-    if (LEADFORGE_ENABLED && activeWorkspace?.id) {
-      leadForgeJob = await createLeadForgeJob({
-        workspaceId: activeWorkspace.id,
-        campaignName: leadForgeCampaignName.trim(),
-        keyword: category.trim() || effectiveQuery,
-        area: area.trim(),
-        city: location.trim(),
-        requestedResults: 20
-      });
-    }
-
     try {
       const { data, error } = await supabase.functions.invoke('engagex-lead-search', {
         body: {
-          query: effectiveQuery,
+          query: query.trim(),
           category: category.trim(),
           area: area.trim(),
           city: location.trim(),
@@ -159,15 +139,6 @@ export const DataExtractorView: React.FC = () => {
       const results = data?.results || [];
       setLiveResults(results);
       setNextPageToken(data?.nextPageToken || null);
-
-      if (activeWorkspace?.id) {
-        await completeLeadForgeJob({
-          workspaceId: activeWorkspace.id,
-          campaignId: leadForgeJob.campaignId,
-          jobId: leadForgeJob.jobId,
-          results
-        });
-      }
 
       const historyInsert = await supabase
         .from('engagex_lead_search_history')
@@ -191,9 +162,6 @@ export const DataExtractorView: React.FC = () => {
       if (!results.length) setNotice('No Google Maps businesses found for this area/search.');
       else setNotice('Google Maps/Places results loaded for the selected area. Select the businesses you want to save.');
     } catch (e: any) {
-      if (activeWorkspace?.id) {
-        await failLeadForgeJob(activeWorkspace.id, leadForgeJob.jobId, e?.message || 'Live search failed.');
-      }
       setNotice(e?.message || 'Live search failed.');
     } finally {
       setSearching(false);
@@ -520,7 +488,6 @@ export const DataExtractorView: React.FC = () => {
       subtitle="Discover, organize and qualify business prospects by source, category and location for Savrdh Technology outreach workflows."
     >
       <div style={{maxWidth:1540,margin:'0 auto',padding:'2px 2px 24px'}}>
-      <LeadForgeBetaPanel campaignName={leadForgeCampaignName} setCampaignName={setLeadForgeCampaignName} />
       <div style={{ display:'grid', gridTemplateColumns:'repeat(4,minmax(0,1fr))', gap:16, marginBottom:18 }}>
         {[
           ['TOTAL SEARCHES', kpis.searches, 'Search history records'],
