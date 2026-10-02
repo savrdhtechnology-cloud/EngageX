@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect, ChangeEvent } from 'react';
+import React, { useState, useMemo, useEffect, useRef, ChangeEvent } from 'react';
 import {
   ContactRound,
   Search,
@@ -36,8 +36,58 @@ const DEFAULT_WHATSAPP_GROUP_LINK = 'https://chat.whatsapp.com/KdCB01biJWTH6ihxL
 const DEFAULT_INVITE_MESSAGE = DEFAULT_COMPANY_INVITE;
 
 export const ContactsView: React.FC = () => {
-  const { contacts, templates, addContact, updateContact, deleteContact, bulkDeleteContacts, importContacts, workspaceSettings, activeWorkspace, refreshContacts } = useApp();
+  const { contacts, templates, userSession, addContact, updateContact, deleteContact, bulkDeleteContacts, importContacts, workspaceSettings, activeWorkspace, refreshContacts } = useApp();
 
+
+  const [handoffs, setHandoffs] = useState<Record<string, { status: string; error?: string; lead_ref?: string }>>({});
+  const [qualifyingId, setQualifyingId] = useState('');
+  const syncWorkspaceRef = useRef(activeWorkspace?.id);
+  syncWorkspaceRef.current = activeWorkspace?.id;
+  const salesSyncEnabled = activeWorkspace?.slug === 'savrdh-engagex';
+  const canQualify = salesSyncEnabled && ['Owner','Admin','Manager'].includes(userSession.role);
+  const loadHandoffs = async (wid: string) => {
+    const { data, error } = await supabase.from('engagex_crm_handoffs').select('record_kind,record_id,status,error,lead_ref').eq('workspace_id', wid);
+    if (error) throw new Error(error.message);
+    const next = Object.fromEntries((data || []).map(h => [h.record_kind + ':' + h.record_id, h]));
+    if (syncWorkspaceRef.current === wid) setHandoffs(next);
+    return next;
+  };
+  useEffect(() => {
+    setHandoffs({}); setQualifyingId('');
+    if (!salesSyncEnabled || !activeWorkspace?.id) return;
+    const wid = activeWorkspace.id;
+    let active = true;
+    const refreshSync = () => { if (active) void loadHandoffs(wid).catch(e => { if (active && syncWorkspaceRef.current === wid) setError(e.message); }); };
+    refreshSync();
+    const timer = window.setInterval(refreshSync, 10000);
+    window.addEventListener('focus', refreshSync);
+    return () => { active = false; window.clearInterval(timer); window.removeEventListener('focus', refreshSync); };
+  }, [activeWorkspace?.id, salesSyncEnabled]);
+  const qualifyForSales = async (kind: 'contact' | 'prospect', record: any) => {
+    if (!canQualify || qualifyingId || !activeWorkspace?.id) return;
+    const wid = activeWorkspace.id;
+    setQualifyingId(record.id); setError('');
+    try {
+      if (kind === 'contact') await updateContact(record.id, { tags: Array.from(new Set([...(record.tags || []), 'qualified'])) });
+      else {
+        const { error, data } = await supabase.from('engagex_prospects').update({ status: 'qualified' }).eq('workspace_id', wid).eq('id', record.id).select('id');
+        if (error) throw new Error(error.message);
+        if (!data?.length) throw new Error('Qualification access denied or prospect not found.');
+        if (syncWorkspaceRef.current === wid) setProspects(prev => prev.map(p => p.id === record.id ? { ...p, status: 'qualified' } : p));
+      }
+      const next = await loadHandoffs(wid);
+      if (syncWorkspaceRef.current !== wid) return;
+      const receipt = next[kind + ':' + record.id];
+      if (receipt?.status !== 'synced') throw new Error(receipt?.error || 'Handoff not confirmed. Refresh and retry.');
+      setNotice('Qualified and synced to Savrdh Technology Sales CRM. Lead: ' + receipt.lead_ref);
+    } catch (e) { if (syncWorkspaceRef.current === wid) setError((e as Error).message); }
+    finally { if (syncWorkspaceRef.current === wid) setQualifyingId(''); }
+  };
+  const handoffBadge = (kind: string, id: string) => {
+    const receipt = handoffs[kind + ':' + id];
+    if (!receipt) return null;
+    return <small style={{display:'block',marginTop:5,color:receipt.status==='synced'?'#15803d':'#b45309'}} title={receipt.error || receipt.lead_ref}>{receipt.status === 'synced' ? '✓ Synced to Sales CRM' : receipt.error || 'Sync needs review'}</small>;
+  };
   const [search, setSearch] = useState('');
   const [selectedTag, setSelectedTag] = useState<string>('all');
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
@@ -866,6 +916,8 @@ export const ContactsView: React.FC = () => {
                       <td><b style={{color:'#0369a1'}}>{p.recommended_product || '—'}</b></td>
                       <td>{p.created_at ? new Date(p.created_at).toLocaleDateString('en-IN') : '—'}</td>
                       <td>
+                        {canQualify && <button className="cbtn secondary" disabled={!!qualifyingId || (!p.phone && !p.email) || p.status === 'do_not_contact'} onClick={() => void qualifyForSales('prospect', p)} style={{fontSize:9,padding:'7px 9px',marginBottom:5}}>{qualifyingId===p.id ? 'Syncing…' : handoffs['prospect:'+p.id]?.status==='synced' ? 'Retry Sync' : 'Mark Qualified'}</button>}
+                        {handoffBadge('prospect', p.id)}
                         {prospectInCrm(p) ? (
                           <span className="status" style={{background:'#dcfce7',color:'#15803d'}}>IN CONTACTS</span>
                         ) : (
@@ -947,7 +999,8 @@ export const ContactsView: React.FC = () => {
                       <td><div className="contactAddress"><span>{c.email || '—'}</span>{c.email && <button className="tableAction" aria-label={`Copy email for ${c.name}`} onClick={()=>void copyValue(c.email)}><Copy size={12}/></button>}</div>
                         <div className="consentBadges"><span className={c.email_consent?'on':''}>Email {c.email_consent?'opt-in':'review'}</span></div></td>
                       <td><span className="contactScore" style={{background:row.score===null?'#f1f5f9':row.score>=80?'#dcfce7':'#e0f2fe',color:row.score===null?'#64748b':row.score>=80?'#15803d':'#0369a1'}}>{row.score===null?'—':`${row.score}%`}</span></td>
-                      <td><span className="contactCrmStatus">{c.status==='active'?'✓ In CRM':c.status.toUpperCase()}</span><div className="contactRowActions">
+                      <td>{handoffBadge('contact', c.id)}<span className="contactCrmStatus">{c.status==='active'?'✓ In CRM':c.status.toUpperCase()}</span><div className="contactRowActions">
+                        {canQualify && <button className="tableAction" title="Mark qualified and sync to Savrdh Technology Sales CRM" aria-label={`Qualify ${c.name} for sales CRM`} disabled={!!qualifyingId || c.status !== 'active'} onClick={() => void qualifyForSales('contact', c)}><CheckCircle2 size={15}/></button>}
                         <button className="tableAction" title="Compose WhatsApp message" aria-label={`WhatsApp ${c.name}`} disabled={!c.mobile} onClick={()=>messageContacts([c.id],'whatsapp')}><MessageCircle size={15}/></button>
                         <button className="tableAction" title="Compose email" aria-label={`Email ${c.name}`} disabled={!c.email} onClick={()=>messageContacts([c.id],'email')}><Mail size={15}/></button>
                         <button className="tableAction" title="Compose SMS" aria-label={`SMS ${c.name}`} disabled={!c.mobile} onClick={()=>messageContacts([c.id],'sms')}><MessageSquareText size={15}/></button>
