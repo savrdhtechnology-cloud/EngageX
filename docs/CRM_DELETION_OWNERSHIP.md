@@ -8,4 +8,6 @@ CRM deletion sets linked handoff receipts to crm_deleted and blocked. Both sync 
 
 Applied production migrations: 20261002044625 and 20261002045003. Tests run in a transaction and roll back all fixtures. They cover contact/prospect cascade, CRM-only deletion, repeat sync, stale snapshot upsert, preservation of four existing source types, workspace isolation and private privileges.
 
-Edge function version 10 adds deleteLeads after existing requireSession authorization; JWT configuration remains unchanged because custom CRM sessions are verified. Missing/malformed IDs and mismatched confirmation counts return 400. Authentication failure returns 401. DB errors return failure without claiming local deletion.
+Edge function version 11 adds deleteLeads after existing requireSession authorization; JWT configuration remains unchanged because custom CRM sessions are verified. Missing/malformed IDs and mismatched confirmation counts return 400. Authentication failure returns 401. DB errors return failure without claiming local deletion.
+
+Existing database restrictions on leads with linked deals or financial records remain in force. Main CRM returns 409 with a review message; a failed bulk delete is atomic and leaves every selected lead in place.
