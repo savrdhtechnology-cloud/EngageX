@@ -117,8 +117,8 @@ export const DataExtractorView: React.FC = () => {
   useEffect(() => { void load(); void loadHistory(); }, [activeWorkspace?.id]);
 
   const runLiveSearch = async () => {
-    if (!category.trim() && !query.trim() && !location.trim() && !area.trim()) {
-      setNotice('Enter a business/category, area or city first.');
+    if (!category.trim() && !query.trim() && !location.trim() && !area.trim() && !leadForgeCampaignName.trim()) {
+      setNotice('Enter a business/category and city, or type a natural search in the LeadForge Campaign Name box.');
       return;
     }
     setSearching(true);
@@ -128,12 +128,16 @@ export const DataExtractorView: React.FC = () => {
     setNextPageToken(null);
     setLastHistoryId(null);
 
+    const effectiveQuery = query.trim() || (
+      !category.trim() && !location.trim() && !area.trim() ? leadForgeCampaignName.trim() : ''
+    );
+
     let leadForgeJob: { campaignId: string | null; jobId: string | null } = { campaignId: null, jobId: null };
     if (LEADFORGE_ENABLED && activeWorkspace?.id) {
       leadForgeJob = await createLeadForgeJob({
         workspaceId: activeWorkspace.id,
         campaignName: leadForgeCampaignName.trim(),
-        keyword: category.trim() || query.trim(),
+        keyword: category.trim() || effectiveQuery,
         area: area.trim(),
         city: location.trim(),
         requestedResults: 20
@@ -143,7 +147,7 @@ export const DataExtractorView: React.FC = () => {
     try {
       const { data, error } = await supabase.functions.invoke('engagex-lead-search', {
         body: {
-          query: query.trim(),
+          query: effectiveQuery,
           category: category.trim(),
           area: area.trim(),
           city: location.trim(),
