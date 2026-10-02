@@ -366,7 +366,7 @@ export const ContactsView: React.FC = () => {
 
   const deleteSelectedProspects = async () => {
     if (!activeWorkspace?.id || !selectedProspectIds.length) return;
-    if (!confirm(`Delete ${selectedProspectIds.length} saved prospect(s)?`)) return;
+    if (!confirm(`Delete ${selectedProspectIds.length} saved prospect(s)? Linked CRM leads originally created by EngageX will also be removed. Existing Manual / Website / Partner / Direct CRM leads will stay.`)) return;
     const { error } = await supabase
       .from('engagex_prospects')
       .delete()
@@ -775,7 +775,7 @@ export const ContactsView: React.FC = () => {
           <button
             className="danger"
             onClick={async () => {
-              if (confirm(`Are you sure you want to delete ${selectedIds.length} contacts?`)) {
+              if (confirm(`Delete ${selectedIds.length} contacts? Linked CRM leads originally created by EngageX will also be removed. Existing Manual / Website / Partner / Direct CRM leads will stay.`)) {
                 try { await bulkDeleteContacts(selectedIds); } catch { return; }
                 setSelectedIds([]);
                 setNotice(`Deleted ${selectedIds.length} contacts`);
@@ -1005,7 +1005,7 @@ export const ContactsView: React.FC = () => {
                         <button className="tableAction" title="Compose email" aria-label={`Email ${c.name}`} disabled={!c.email} onClick={()=>messageContacts([c.id],'email')}><Mail size={15}/></button>
                         <button className="tableAction" title="Compose SMS" aria-label={`SMS ${c.name}`} disabled={!c.mobile} onClick={()=>messageContacts([c.id],'sms')}><MessageSquareText size={15}/></button>
                         <button className="tableAction" title="Edit contact and consent" aria-label={`Edit ${c.name}`} onClick={()=>handleOpenEdit(c)}><Edit2 size={15}/></button>
-                        <button className="tableAction dangerText" title="Delete contact" aria-label={`Delete ${c.name}`} onClick={async()=>{if(confirm(`Delete contact ${c.name}?`)){try{await bulkDeleteContacts([c.id]);setSelectedIds(prev=>prev.filter(id=>id!==c.id));setNotice(`Deleted ${c.name}.`);}catch(e){setError((e as Error).message);}}}}><Trash2 size={15}/></button>
+                        <button className="tableAction dangerText" title="Delete contact" aria-label={`Delete ${c.name}`} onClick={async()=>{if(confirm(`Delete contact ${c.name}? A linked CRM lead originally created by EngageX will also be removed. Existing CRM leads from other sources stay.`)){try{await bulkDeleteContacts([c.id]);setSelectedIds(prev=>prev.filter(id=>id!==c.id));setNotice(`Deleted ${c.name}.`);}catch(e){setError((e as Error).message);}}}}><Trash2 size={15}/></button>
                       </div></td>
                     </tr>;
                   })}
