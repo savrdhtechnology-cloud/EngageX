@@ -1,13 +1,14 @@
 import { createClient } from '@supabase/supabase-js';
 import config from './supabase-config.json';
 
-const supabaseUrl = import.meta.env?.VITE_SUPABASE_URL?.trim();
-const supabasePublishableKey = import.meta.env?.VITE_SUPABASE_PUBLISHABLE_KEY?.trim();
+// EngageX uses its dedicated Supabase project as the canonical runtime target.
+// Keeping the runtime target in this checked configuration prevents stale
+// deployment environment variables from reconnecting the app to the old shared DB.
+const supabaseUrl = config.url?.trim();
+const supabasePublishableKey = config.publishableKey?.trim();
 
 if (!supabaseUrl || !supabasePublishableKey) {
-  throw new Error(
-    'EngageX Supabase configuration is missing. Set VITE_SUPABASE_URL and VITE_SUPABASE_PUBLISHABLE_KEY in the deployment environment.'
-  );
+  throw new Error('EngageX Supabase configuration is missing.');
 }
 
 export const supabase = createClient(
